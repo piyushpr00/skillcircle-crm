@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CRM – Login</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:var(--bg); }
+    .login-box {
+      background:var(--card); border:1px solid var(--border); border-radius:16px;
+      padding:40px 36px; width:100%; max-width:380px; box-shadow:0 8px 32px rgba(0,0,0,0.08);
+    }
+    .login-logo { font-size:2rem; font-weight:800; color:var(--primary); margin-bottom:6px; }
+    .login-sub  { color:var(--muted); font-size:0.9rem; margin-bottom:28px; }
+    .login-box .field { margin-bottom:16px; }
+    .login-box .field input { width:100%; }
+    .login-box .btn { width:100%; padding:11px; font-size:1rem; margin-top:4px; }
+    .login-err  { color:var(--danger); font-size:0.88rem; margin-top:10px; min-height:20px; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <div class="login-logo">CRM</div>
+    <div class="login-sub">Sign in to your account</div>
+    <form id="login-form">
+      <div class="field"><label>Username</label><input type="text" id="l-user" autocomplete="username" required/></div>
+      <div class="field"><label>Password</label><input type="password" id="l-pass" autocomplete="current-password" required/></div>
+      <button type="submit" class="btn btn-primary">Sign In</button>
+      <div class="login-err" id="login-err"></div>
+    </form>
+  </div>
+  <script>
+    if (localStorage.getItem('crm_token')) location.href = '/';
+    document.getElementById('login-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const err = document.getElementById('login-err');
+      err.textContent = '';
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('l-user').value.trim(),
+          password: document.getElementById('l-pass').value,
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) { err.textContent = data.error || 'Login failed'; return; }
+      localStorage.setItem('crm_token', data.token);
+      localStorage.setItem('crm_user', JSON.stringify(data.user));
+      location.href = '/';
+    });
+  </script>
+</body>
+</html>

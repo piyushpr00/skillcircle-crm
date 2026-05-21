@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CRM Dashboard</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo">CRM</div>
+    <nav id="main-nav">
+      <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+      <button class="nav-btn" data-view="clients">Clients</button>
+      <button class="nav-btn" data-view="followups">Follow-ups</button>
+      <button class="nav-btn admin-only" data-view="users" style="display:none">Users</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip" id="user-chip"></div>
+      <button class="nav-btn" id="btn-logout">Logout</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="view active">
+      <h1>Dashboard</h1>
+      <div class="stats-row" id="stats-row"></div>
+      <div class="panel">
+        <h2>Today's Follow-ups <span class="badge danger" id="today-badge">0</span></h2>
+        <div id="today-list" class="followup-list"></div>
+      </div>
+    </section>
+
+    <!-- CLIENTS -->
+    <section id="view-clients" class="view">
+      <div class="view-header">
+        <h1>Clients</h1>
+        <div class="header-actions">
+          <input type="text" id="search-input" placeholder="Search clients..."/>
+          <button class="btn btn-secondary admin-only" id="btn-upload">Import Excel/CSV</button>
+          <button class="btn btn-primary" id="btn-add-client">+ Add Client</button>
+        </div>
+      </div>
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none"/>
+      <div id="client-table-wrap">
+        <table class="table" id="client-table">
+          <thead>
+            <tr>
+              <th>Name</th><th>Phone</th><th>Email</th><th>Location</th><th>Budget</th><th>Remarks</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="client-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- FOLLOW-UPS -->
+    <section id="view-followups" class="view">
+      <h1>Upcoming Follow-ups</h1>
+      <div id="upcoming-list" class="followup-list"></div>
+    </section>
+
+    <!-- USERS (admin only) -->
+    <section id="view-users" class="view">
+      <div class="view-header">
+        <h1>Team Members</h1>
+        <button class="btn btn-primary" id="btn-add-user">+ Add Member</button>
+      </div>
+      <div id="user-table-wrap">
+        <table class="table">
+          <thead><tr><th>Username</th><th>Role</th><th>Added</th><th>Action</th></tr></thead>
+          <tbody id="user-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- CLIENT MODAL -->
+  <div class="modal-overlay" id="client-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Add Client</h2>
+        <button class="close-btn" id="close-client-modal">&times;</button>
+      </div>
+      <form id="client-form">
+        <input type="hidden" id="client-id"/>
+        <div class="form-grid">
+          <div class="field"><label>Name *</label><input type="text" id="f-name" required/></div>
+          <div class="field"><label>Phone</label><input type="text" id="f-number"/></div>
+          <div class="field"><label>Email</label><input type="email" id="f-email"/></div>
+          <div class="field"><label>Location</label><input type="text" id="f-location"/></div>
+          <div class="field full"><label>Budget</label><input type="text" id="f-budget"/></div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="cancel-client">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DETAIL / REMARKS MODAL -->
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="detail-name"></h2>
+        <button class="close-btn" id="close-detail-modal">&times;</button>
+      </div>
+      <div class="detail-info" id="detail-info"></div>
+      <div class="remarks-section">
+        <h3>Remarks &amp; Follow-ups</h3>
+        <div id="remarks-list"></div>
+        <form id="remark-form" class="remark-form">
+          <textarea id="remark-text" placeholder="Add a remark..." rows="2"></textarea>
+          <div class="remark-row">
+            <div class="field">
+              <label>Follow-up Date</label>
+              <input type="date" id="remark-date"/>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Remark</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD USER MODAL -->
+  <div class="modal-overlay" id="user-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Add Team Member</h2>
+        <button class="close-btn" id="close-user-modal">&times;</button>
+      </div>
+      <form id="user-form">
+        <div class="form-grid" style="grid-template-columns:1fr">
+          <div class="field"><label>Username</label><input type="text" id="u-username" required/></div>
+          <div class="field"><label>Password</label><input type="password" id="u-password" required/></div>
+          <div class="field">
+            <label>Role</label>
+            <select id="u-role">
+              <option value="executive">Executive</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="cancel-user">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
