@@ -35,8 +35,11 @@ async function init() {
       client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
       remark TEXT NOT NULL,
       follow_up_date DATE,
+      follow_up_time TIME DEFAULT '09:00:00',
       created_at TIMESTAMP DEFAULT NOW()
     );
+
+    ALTER TABLE remarks ADD COLUMN IF NOT EXISTS follow_up_time TIME DEFAULT '09:00:00';
 
     CREATE TABLE IF NOT EXISTS notifications (
       id SERIAL PRIMARY KEY,

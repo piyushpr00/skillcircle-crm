@@ -80,12 +80,15 @@ async function loadDashboard() {
     ? '<div class="empty-state">No follow-ups scheduled for today.</div>'
     : today.map(r => `
         <div class="followup-card today">
-          <div>
+          <div style="flex:1">
             <div class="fc-name">${esc(r.client_name)}</div>
             <div class="fc-remark">${esc(r.remark)}</div>
             <div style="font-size:.8rem;color:var(--muted);margin-top:4px">${esc(r.number)}${r.email ? ' · '+esc(r.email) : ''}</div>
           </div>
-          <div class="fc-date">TODAY</div>
+          <div class="fc-date-time">
+            <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">TODAY</div>
+            <div style="font-weight:600;font-size:.95rem;color:var(--primary)">${r.follow_up_time ? r.follow_up_time.substring(0,5) : '09:00'}</div>
+          </div>
         </div>`).join('');
 }
 
@@ -211,11 +214,15 @@ function renderRemarks(remarks) {
   }
   list.innerHTML = remarks.map(r => `
     <div class="remark-item">
-      <div>
+      <div style="flex:1">
         <div class="ri-text">${esc(r.remark)}</div>
         <div style="font-size:.78rem;color:var(--muted);margin-top:3px">${new Date(r.created_at).toLocaleString()}</div>
       </div>
-      ${r.follow_up_date ? `<div class="ri-date">${r.follow_up_date}</div>` : ''}
+      ${r.follow_up_date ? `<div class="ri-date">
+        <div style="font-size:.75rem;margin-bottom:2px">Follow-up</div>
+        ${r.follow_up_date}<br/>
+        ${r.follow_up_time ? r.follow_up_time.substring(0,5) : '09:00'}
+      </div>` : ''}
       <button class="ri-del" onclick="deleteRemark(${r.id})" title="Delete">&#x2715;</button>
     </div>`).join('');
 }
@@ -229,12 +236,14 @@ document.getElementById('remark-form').addEventListener('submit', async e => {
   e.preventDefault();
   const remark = document.getElementById('remark-text').value.trim();
   const follow_up_date = document.getElementById('remark-date').value;
+  const follow_up_time = document.getElementById('remark-time').value;
   if (!remark) return;
   await apiFetch(`/clients/${currentClientId}/remarks`, {
-    method: 'POST', body: JSON.stringify({ remark, follow_up_date })
+    method: 'POST', body: JSON.stringify({ remark, follow_up_date, follow_up_time })
   });
   document.getElementById('remark-text').value = '';
   document.getElementById('remark-date').value = '';
+  document.getElementById('remark-time').value = '09:00';
   toast('Remark added', 'success');
   openDetail(currentClientId);
   loadDashboard();

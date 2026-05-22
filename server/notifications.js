@@ -5,37 +5,29 @@ const NOTIFICATION_MINUTES = [5, 3]; // Send notifications 5 and 3 minutes befor
 async function checkAndSendNotifications() {
   try {
     for (const minutesBefore of NOTIFICATION_MINUTES) {
-      // Calculate the time window for this notification
+      // Get current time
       const now = new Date();
-      const notificationTime = new Date(now.getTime() + minutesBefore * 60 * 1000);
+      const currentTime = now.getHours().toString().padStart(2, '0') + ':' +
+                         now.getMinutes().toString().padStart(2, '0');
 
       // Get today's date in YYYY-MM-DD format
       const todayDate = now.toISOString().split('T')[0];
-      const notificationDate = notificationTime.toISOString().split('T')[0];
-
-      // Only notify if the follow-up is today
-      if (notificationDate !== todayDate) continue;
-
-      const currentHour = now.getHours().toString().padStart(2, '0');
-      const currentMinute = now.getMinutes().toString().padStart(2, '0');
-      const currentTime = `${currentHour}:${currentMinute}`;
-
-      const notificationHour = notificationTime.getHours().toString().padStart(2, '0');
-      const notificationMinute = notificationTime.getMinutes().toString().padStart(2, '0');
-      const targetTime = `${notificationHour}:${notificationMinute}`;
 
       // Find remarks that should trigger a notification
+      // Check if follow-up time minus minutesBefore equals current time
       const { rows: remarks } = await pool.query(`
-        SELECT r.id, r.remark, r.follow_up_date, r.client_id, c.name AS client_name
+        SELECT r.id, r.remark, r.follow_up_date, r.follow_up_time, r.client_id, c.name AS client_name
         FROM remarks r
         JOIN clients c ON r.client_id = c.id
         WHERE r.follow_up_date = $1
+          AND r.follow_up_time IS NOT NULL
+          AND ABS(EXTRACT(EPOCH FROM (r.follow_up_time - CAST($2 AS TIME))) - ($3 * 60)) < 30
           AND NOT EXISTS (
             SELECT 1 FROM notifications
-            WHERE remark_id = r.id AND minutes_before = $2
+            WHERE remark_id = r.id AND minutes_before = $4
           )
         LIMIT 10
-      `, [todayDate, minutesBefore]);
+      `, [todayDate, currentTime, minutesBefore, minutesBefore]);
 
       for (const remark of remarks) {
         try {

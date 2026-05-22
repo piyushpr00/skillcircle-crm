@@ -78,11 +78,11 @@ app.delete('/api/clients/:id', adminOnly, async (req, res) => {
 // ── Remarks ────────────────────────────────────────────
 app.post('/api/clients/:id/remarks', async (req, res) => {
   try {
-    const { remark, follow_up_date } = req.body;
+    const { remark, follow_up_date, follow_up_time } = req.body;
     if (!remark) return res.status(400).json({ error: 'Remark required' });
     const { rows } = await pool.query(
-      'INSERT INTO remarks (client_id,remark,follow_up_date) VALUES ($1,$2,$3) RETURNING id',
-      [req.params.id, remark, follow_up_date||null]
+      'INSERT INTO remarks (client_id,remark,follow_up_date,follow_up_time) VALUES ($1,$2,$3,$4) RETURNING id',
+      [req.params.id, remark, follow_up_date||null, follow_up_time||'09:00:00']
     );
     res.json({ id: rows[0].id });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -101,7 +101,8 @@ app.get('/api/followups/today', async (req, res) => {
     const { rows } = await pool.query(`
       SELECT r.*, c.name AS client_name, c.number, c.email
       FROM remarks r JOIN clients c ON r.client_id=c.id
-      WHERE r.follow_up_date=CURRENT_DATE ORDER BY c.name
+      WHERE r.follow_up_date=CURRENT_DATE
+      ORDER BY r.follow_up_time ASC, c.name
     `);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -113,7 +114,7 @@ app.get('/api/followups/upcoming', async (req, res) => {
       SELECT r.*, c.name AS client_name, c.number, c.email
       FROM remarks r JOIN clients c ON r.client_id=c.id
       WHERE r.follow_up_date>=CURRENT_DATE
-      ORDER BY r.follow_up_date ASC LIMIT 50
+      ORDER BY r.follow_up_date ASC, r.follow_up_time ASC LIMIT 50
     `);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
