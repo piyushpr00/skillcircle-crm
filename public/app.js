@@ -371,11 +371,8 @@ document.getElementById('client-form').addEventListener('submit', async e => {
     toast('Phone number must contain only digits', 'error');
     return;
   }
-  if (!email) {
-    toast('Email is required', 'error');
-    return;
-  }
-  if (!validateEmailFormat(email)) {
+  // Email is optional, but validate format if provided
+  if (email && !validateEmailFormat(email)) {
     toast('Email format is invalid (e.g., user@example.com)', 'error');
     return;
   }

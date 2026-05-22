@@ -179,17 +179,13 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       const email = String(row['Email']||row['email']||'').trim();
       const location = String(row['Location']||row['location']||'').trim();
 
-      // Validate all required fields
+      // Validate required fields
       if (!name) {
         errors.push(`Row ${rowNum}: Name is required`);
         continue;
       }
       if (!phone) {
         errors.push(`Row ${rowNum}: Phone is required`);
-        continue;
-      }
-      if (!email) {
-        errors.push(`Row ${rowNum}: Email is required`);
         continue;
       }
       if (!location) {
@@ -203,8 +199,8 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         continue;
       }
 
-      // Validate email format
-      if (!validateEmail(email)) {
+      // Validate email format if provided (optional field, but must be valid if present)
+      if (email && !validateEmail(email)) {
         errors.push(`Row ${rowNum}: Email format is invalid (${email})`);
         continue;
       }
