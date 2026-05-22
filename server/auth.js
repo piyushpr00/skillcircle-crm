@@ -38,12 +38,12 @@ router.get('/users', auth, adminOnly, async (req, res) => {
 // Create user (admin only)
 router.post('/users', auth, adminOnly, async (req, res) => {
   try {
-    const { username, password, role } = req.body;
+    const { username, password, email, role } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
-      "INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id, username, role",
-      [username, hash, role || 'executive']
+      "INSERT INTO users (username, password, email, role) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role",
+      [username, hash, email || null, role || 'executive']
     );
     res.json(rows[0]);
   } catch (e) {

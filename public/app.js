@@ -809,13 +809,14 @@ document.getElementById('user-form')?.addEventListener('submit', async e => {
   e.preventDefault();
   const body = {
     username: document.getElementById('u-username').value.trim(),
+    email: document.getElementById('u-email').value.trim() || null,
     password: document.getElementById('u-password').value,
     role: document.getElementById('u-role').value,
   };
   const res = await apiFetch('/auth/users', { method: 'POST', body: JSON.stringify(body) });
   const data = await res.json();
   if (!res.ok) { toast(data.error, 'error'); return; }
-  toast('Member created', 'success');
+  toast('Member created' + (body.email ? ' with email notifications enabled' : ''), 'success');
   closeUserModal();
   loadUsers();
 });
@@ -829,6 +830,43 @@ async function fetchNotifications() {
   } catch (e) {
     console.error('Failed to fetch notifications:', e);
     return [];
+  }
+}
+
+// Play notification sound
+function playNotificationSound() {
+  try {
+    // Create a simple beep sound using Web Audio API
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = 800; // Frequency in Hz
+    oscillator.type = 'sine'; // Sine wave
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.5);
+  } catch (e) {
+    console.log('Audio context not available');
+  }
+}
+
+// Update page title and badge with follow-up count
+function updatePageBadge(count) {
+  const baseTitle = 'CRM Dashboard - Lead Management System';
+  if (count > 0) {
+    document.title = `(${count}) ${baseTitle}`;
+    // Visual feedback: add a subtle animation to the favicon area
+    document.body.style.borderTop = '3px solid #dc2626';
+  } else {
+    document.title = baseTitle;
+    document.body.style.borderTop = 'none';
   }
 }
 
@@ -847,6 +885,22 @@ function updateNotificationUI(notifs) {
     `).join('');
     panel.innerHTML = html || '<div class="empty-state">No recent notifications</div>';
   }
+
+  // Play sound for urgent notifications (3 and 5 minutes)
+  const urgentNotifs = notifs.filter(n => n.minutes_before <= 5);
+  if (urgentNotifs.length > 0) {
+    // Play sound only once per minute
+    const lastSoundTime = sessionStorage.getItem('last_sound_time');
+    const now = Date.now();
+    if (!lastSoundTime || (now - parseInt(lastSoundTime)) > 30000) {
+      playNotificationSound();
+      sessionStorage.setItem('last_sound_time', now.toString());
+    }
+  }
+
+  // Update page title and badge with notification count
+  const upcomingCount = notifs.filter(n => n.minutes_before >= 3).length;
+  updatePageBadge(upcomingCount);
 
   // Also send browser notifications for critical ones (3 min before)
   const criticalNotifs = notifs.filter(n => n.minutes_before === 3);

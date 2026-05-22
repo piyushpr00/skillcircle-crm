@@ -1,4 +1,5 @@
 const { pool } = require('./db');
+const { sendNotificationEmail } = require('./email');
 
 const NOTIFICATION_MINUTES = [15, 10, 5, 3]; // Send notifications 15, 10, 5 and 3 minutes before
 
@@ -23,9 +24,10 @@ async function checkAndSendNotifications() {
       // Find remarks that should trigger a notification
       // Check if follow-up time is within the notification window (±30 seconds from target time)
       const { rows: remarks } = await pool.query(`
-        SELECT r.id, r.remark, r.follow_up_date, r.follow_up_time, r.client_id, c.name AS client_name
+        SELECT r.id, r.remark, r.follow_up_date, r.follow_up_time, r.client_id, c.name AS client_name, c.assigned_to, u.email
         FROM remarks r
         JOIN clients c ON r.client_id = c.id
+        LEFT JOIN users u ON c.assigned_to = u.id
         WHERE r.follow_up_date = $1
           AND r.follow_up_time IS NOT NULL
           AND ABS(EXTRACT(EPOCH FROM (r.follow_up_time - CAST($2 AS TIME))) - ($3 * 60)) < 30
@@ -55,6 +57,18 @@ async function checkAndSendNotifications() {
           `, [remark.id, remark.client_name, minutesBefore, message]);
 
           console.log(`[NOTIFICATION] ${minutesBefore}min before: ${message}`);
+
+          // Send email notification if user has email
+          if (remark.email) {
+            const followupDateTime = `${remark.follow_up_date} at ${remark.follow_up_time}`;
+            await sendNotificationEmail(
+              remark.email,
+              remark.client_name,
+              remark.remark,
+              followupDateTime,
+              minutesBefore
+            );
+          }
         } catch (err) {
           console.error(`Failed to record notification for remark ${remark.id}:`, err.message);
         }
