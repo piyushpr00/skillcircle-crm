@@ -6,6 +6,27 @@ if (!token || !me) { location.href = '/login.html'; throw 0; }
 const isAdmin = me.role === 'admin';
 const API = '/api';
 
+// ── Animation Helpers ──────────────────────────────────
+function addStaggerAnimation(elements, delay = 50) {
+  elements.forEach((el, i) => {
+    el.style.animation = `slideInUp 0.5s ease ${i * delay}ms both`;
+  });
+}
+
+function animateCounter(element, target, duration = 1000) {
+  const increment = target / (duration / 16);
+  let current = 0;
+  const interval = setInterval(() => {
+    current += increment;
+    if (current >= target) {
+      element.textContent = target;
+      clearInterval(interval);
+    } else {
+      element.textContent = Math.floor(current);
+    }
+  }, 16);
+}
+
 function apiFetch(url, opts = {}) {
   return fetch(API + url, {
     ...opts,
@@ -66,11 +87,19 @@ async function loadDashboard() {
     apiFetch('/followups/today').then(r => r.json()),
   ]);
 
+  const totalRemarks = clients.reduce((a,c) => a + (c.remark_count||0), 0);
+
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="stat-label">Total Clients</div><div class="stat-value">${clients.length}</div></div>
     <div class="stat-card"><div class="stat-label">Today's Follow-ups</div><div class="stat-value red">${today.length}</div></div>
-    <div class="stat-card"><div class="stat-label">Total Remarks</div><div class="stat-value">${clients.reduce((a,c) => a + (c.remark_count||0), 0)}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Remarks</div><div class="stat-value">${totalRemarks}</div></div>
   `;
+
+  // Animate stat cards
+  setTimeout(() => {
+    const statCards = document.querySelectorAll('.stat-card');
+    addStaggerAnimation(statCards, 100);
+  }, 50);
 
   const badge = document.getElementById('today-badge');
   badge.textContent = today.length;
@@ -95,6 +124,12 @@ async function loadDashboard() {
           </div>
           <button class="btn btn-sm btn-danger" onclick="deleteFollowup(${r.id}, 'loadDashboard')">Delete</button>
         </div>`).join('');
+
+  // Animate follow-up cards
+  setTimeout(() => {
+    const followupCards = list.querySelectorAll('.followup-card');
+    addStaggerAnimation(followupCards, 80);
+  }, 150);
 }
 
 // ── Clients ────────────────────────────────────────────
