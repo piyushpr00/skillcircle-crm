@@ -341,11 +341,17 @@ async function deleteUser(id) {
 
 async function deleteFollowup(id, refreshFunc) {
   if (!confirm('Delete this follow-up?')) return;
-  const res = await apiFetch(`/api/remarks/${id}`, { method: 'DELETE' });
-  if (!res.ok) { toast('Failed to delete follow-up', 'error'); return; }
-  toast('Follow-up deleted', 'error');
-  if (refreshFunc === 'loadDashboard') loadDashboard();
-  if (refreshFunc === 'loadUpcoming') loadUpcoming();
+  try {
+    const res = await apiFetch(`/api/remarks/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) { toast('Failed to delete follow-up', 'error'); return; }
+    toast('Follow-up deleted', 'success');
+    if (refreshFunc === 'loadDashboard') loadDashboard();
+    if (refreshFunc === 'loadUpcoming') loadUpcoming();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+    console.error('Delete error:', e);
+  }
 }
 
 const userModal = document.getElementById('user-modal');
