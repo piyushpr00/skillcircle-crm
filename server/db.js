@@ -37,6 +37,24 @@ async function init() {
       follow_up_date DATE,
       created_at TIMESTAMP DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id SERIAL PRIMARY KEY,
+      remark_id INTEGER REFERENCES remarks(id) ON DELETE CASCADE,
+      minutes_before INTEGER,
+      sent_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(remark_id, minutes_before)
+    );
+
+    CREATE TABLE IF NOT EXISTS notification_logs (
+      id SERIAL PRIMARY KEY,
+      remark_id INTEGER REFERENCES remarks(id) ON DELETE CASCADE,
+      client_name TEXT,
+      minutes_before INTEGER,
+      message TEXT,
+      timestamp TIMESTAMP DEFAULT NOW()
+    );
   `);
 
   const { rows } = await pool.query('SELECT COUNT(*) FROM users');

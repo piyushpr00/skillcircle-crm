@@ -325,15 +325,56 @@ document.getElementById('user-form')?.addEventListener('submit', async e => {
   loadUsers();
 });
 
-// ── Browser Notifications ──────────────────────────────
+// ── Notifications System ──────────────────────────────
+async function fetchNotifications() {
+  try {
+    const notifs = await apiFetch('/notifications').then(r => r.json());
+    updateNotificationUI(notifs);
+    return notifs;
+  } catch (e) {
+    console.error('Failed to fetch notifications:', e);
+    return [];
+  }
+}
+
+function updateNotificationUI(notifs) {
+  if (!notifs || notifs.length === 0) return;
+
+  // Show recent notifications in a panel
+  const panel = document.getElementById('notification-panel');
+  if (panel) {
+    const html = notifs.slice(0, 5).map(n => `
+      <div class="notification-item">
+        <div class="notif-client">${esc(n.client_name)}</div>
+        <div class="notif-time">${n.minutes_before}min before</div>
+        <div class="notif-msg">${esc(n.message)}</div>
+      </div>
+    `).join('');
+    panel.innerHTML = html || '<div class="empty-state">No recent notifications</div>';
+  }
+
+  // Also send browser notifications for critical ones (3 min before)
+  const criticalNotifs = notifs.filter(n => n.minutes_before === 3);
+  if (criticalNotifs.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+    criticalNotifs.forEach(n => {
+      if (!sessionStorage.getItem(`notif_shown_${n.remark_id}`)) {
+        new Notification(`⏰ ${n.minutes_before} minutes before follow-up`, {
+          body: `${n.client_name}: ${n.message}`,
+          tag: `followup_${n.remark_id}_${n.minutes_before}`,
+          requireInteraction: false
+        });
+        sessionStorage.setItem(`notif_shown_${n.remark_id}`, 'true');
+      }
+    });
+  }
+}
+
 async function setupNotifications() {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'default') await Notification.requestPermission();
-  if (Notification.permission !== 'granted') return;
-  const rows = await apiFetch('/followups/today').then(r => r.json());
-  rows.forEach(r => {
-    new Notification(`Follow-up: ${r.client_name}`, { body: r.remark });
-  });
+
+  // Fetch and display notifications
+  await fetchNotifications();
 }
 
 // ── Utility ────────────────────────────────────────────
@@ -345,4 +386,11 @@ function esc(s) {
 // ── Init ───────────────────────────────────────────────
 loadDashboard();
 setupNotifications();
-setInterval(setupNotifications, 60 * 60 * 1000);
+// Check for notifications every 1 minute (60000ms)
+setInterval(fetchNotifications, 60000);
+// Also request permissions on load
+setInterval(async () => {
+  if ('Notification' in window && Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+}, 300000);

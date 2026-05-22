@@ -7,6 +7,7 @@ const XLSX = require('xlsx');
 const { pool, init } = require('./db');
 const { auth, adminOnly } = require('./middleware');
 const authRouter = require('./auth');
+const { getUnreadNotifications, startNotificationScheduler } = require('./notifications');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -140,10 +141,22 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+// ── Notifications ──────────────────────────────────────
+app.get('/api/notifications', async (req, res) => {
+  try {
+    const notifications = await getUnreadNotifications();
+    res.json(notifications);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Lazy DB init flag for serverless
 let _ready = false;
 app.dbInit = async () => {
-  if (!_ready) { await init(); _ready = true; }
+  if (!_ready) {
+    await init();
+    startNotificationScheduler();
+    _ready = true;
+  }
 };
 
 module.exports = app;
