@@ -342,9 +342,29 @@ async function deleteUser(id) {
 async function deleteFollowup(id, refreshFunc) {
   if (!confirm('Delete this follow-up?')) return;
   try {
-    const res = await apiFetch(`/api/remarks/${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok || !data.ok) { toast('Failed to delete follow-up', 'error'); return; }
+    console.log('Deleting follow-up with ID:', id);
+    const url = `/api/remarks/${id}`;
+    console.log('API URL:', url);
+
+    const res = await apiFetch(url, { method: 'DELETE' });
+    console.log('Response status:', res.status, 'OK:', res.ok);
+    console.log('Response headers:', res.headers);
+
+    const text = await res.text();
+    console.log('Response text:', text.substring(0, 200));
+
+    let data = {};
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error('Failed to parse JSON:', e);
+    }
+
+    if (!res.ok || !data.ok) {
+      toast('Failed to delete (Status: ' + res.status + ')', 'error');
+      return;
+    }
+
     toast('Follow-up deleted', 'success');
     if (refreshFunc === 'loadDashboard') loadDashboard();
     if (refreshFunc === 'loadUpcoming') loadUpcoming();
