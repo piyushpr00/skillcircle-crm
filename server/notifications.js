@@ -1,6 +1,6 @@
 const { pool } = require('./db');
 
-const NOTIFICATION_MINUTES = [5, 3]; // Send notifications 5 and 3 minutes before
+const NOTIFICATION_MINUTES = [15, 10, 5, 3]; // Send notifications 15, 10, 5 and 3 minutes before
 
 async function checkAndSendNotifications() {
   try {
