@@ -276,11 +276,14 @@ fileInput?.addEventListener('change', async () => {
 
 // ── Follow-ups ─────────────────────────────────────────
 let allUpcomingFollowups = [];
+let selectedFollowups = new Set();
 
 async function loadUpcoming() {
   const rows = await apiFetch('/followups/upcoming').then(r => r.json());
   allUpcomingFollowups = rows;
+  selectedFollowups.clear();
   renderFilteredFollowups(rows);
+  updateBulkToolbar();
 }
 
 function renderFilteredFollowups(rows) {
@@ -309,12 +312,16 @@ function renderFilteredFollowups(rows) {
     : filtered.map(r => {
         const rDate = r.follow_up_date?.split('T')[0] || '';
         const timeStr = r.follow_up_time ? r.follow_up_time.substring(0, 5) : '09:00';
+        const isSelected = selectedFollowups.has(r.id);
         return `
-        <div class="followup-card ${rDate === today ? 'today' : ''}">
-          <div>
-            <div class="fc-name">${esc(r.client_name)}</div>
-            <div class="fc-remark">${esc(r.remark)}</div>
-            <div style="font-size:.8rem;color:var(--muted);margin-top:4px">${esc(r.number)}${r.email?' · '+esc(r.email):''}</div>
+        <div class="followup-card ${rDate === today ? 'today' : ''} ${isSelected ? 'selected' : ''}" data-followup-id="${r.id}">
+          <div class="followup-card-with-checkbox">
+            <input type="checkbox" class="followup-checkbox" data-id="${r.id}" ${isSelected ? 'checked' : ''}/>
+            <div class="followup-card-content">
+              <div class="fc-name">${esc(r.client_name)}</div>
+              <div class="fc-remark">${esc(r.remark)}</div>
+              <div style="font-size:.8rem;color:var(--muted);margin-top:4px">${esc(r.number)}${r.email?' · '+esc(r.email):''}</div>
+            </div>
           </div>
           <div class="fc-date-time">
             <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">${rDate}</div>
@@ -323,6 +330,85 @@ function renderFilteredFollowups(rows) {
           <button class="btn btn-sm btn-danger" onclick="deleteFollowup(${r.id}, 'loadUpcoming')">Delete</button>
         </div>`;
       }).join('');
+
+  // Attach checkbox event listeners
+  document.querySelectorAll('.followup-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', handleFollowupCheckboxChange);
+  });
+}
+
+function handleFollowupCheckboxChange(e) {
+  const id = parseInt(e.target.dataset.id);
+  const card = document.querySelector(`[data-followup-id="${id}"]`);
+
+  if (e.target.checked) {
+    selectedFollowups.add(id);
+    card.classList.add('selected');
+  } else {
+    selectedFollowups.delete(id);
+    card.classList.remove('selected');
+  }
+
+  updateBulkToolbar();
+}
+
+function updateBulkToolbar() {
+  const toolbar = document.getElementById('bulk-delete-toolbar');
+  const countEl = document.getElementById('selection-count');
+  const selectAllCheckbox = document.getElementById('select-all-followups');
+  const list = document.getElementById('upcoming-list');
+  const allCheckboxes = list.querySelectorAll('.followup-checkbox');
+
+  const count = selectedFollowups.size;
+  countEl.textContent = `${count} selected`;
+
+  // Show/hide toolbar
+  toolbar.style.display = count > 0 ? 'flex' : 'none';
+
+  // Update select all checkbox state
+  selectAllCheckbox.checked = allCheckboxes.length > 0 && selectedFollowups.size === allCheckboxes.length;
+}
+
+async function deleteSelectedFollowups() {
+  if (selectedFollowups.size === 0) {
+    toast('No follow-ups selected', 'error');
+    return;
+  }
+
+  if (!confirm(`Delete ${selectedFollowups.size} follow-up(s)?`)) return;
+
+  try {
+    const ids = Array.from(selectedFollowups);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const id of ids) {
+      try {
+        const res = await apiFetch(`/remarks/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (e) {
+        errorCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast(`Deleted ${successCount} follow-up(s)`, 'success');
+    }
+    if (errorCount > 0) {
+      toast(`Failed to delete ${errorCount} follow-up(s)`, 'error');
+    }
+
+    selectedFollowups.clear();
+    loadUpcoming();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+    console.error('Bulk delete error:', e);
+  }
 }
 
 // ── Users (admin only) ─────────────────────────────────
@@ -471,6 +557,32 @@ document.getElementById('btn-clear-filter')?.addEventListener('click', () => {
   document.getElementById('filter-date-to').value = '';
   renderFilteredFollowups(allUpcomingFollowups);
 });
+
+// ── Bulk Delete Listeners ──────────────────────────────
+document.getElementById('select-all-followups')?.addEventListener('change', (e) => {
+  const list = document.getElementById('upcoming-list');
+  const allCheckboxes = list.querySelectorAll('.followup-checkbox');
+
+  if (e.target.checked) {
+    allCheckboxes.forEach(checkbox => {
+      checkbox.checked = true;
+      selectedFollowups.add(parseInt(checkbox.dataset.id));
+      const card = document.querySelector(`[data-followup-id="${checkbox.dataset.id}"]`);
+      card?.classList.add('selected');
+    });
+  } else {
+    allCheckboxes.forEach(checkbox => {
+      checkbox.checked = false;
+      selectedFollowups.delete(parseInt(checkbox.dataset.id));
+      const card = document.querySelector(`[data-followup-id="${checkbox.dataset.id}"]`);
+      card?.classList.remove('selected');
+    });
+  }
+
+  updateBulkToolbar();
+});
+
+document.getElementById('btn-delete-selected')?.addEventListener('click', deleteSelectedFollowups);
 
 // ── Utility ────────────────────────────────────────────
 function esc(s) {
