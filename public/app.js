@@ -82,8 +82,8 @@ async function loadDashboard() {
   const list = document.getElementById('today-list');
   list.innerHTML = today.length === 0
     ? '<div class="empty-state">No follow-ups scheduled for today.</div>'
-    : today.map((r, idx) => `
-        <div class="followup-card today" data-remark-id="${r.id || idx}">
+    : today.map(r => `
+        <div class="followup-card today">
           <div style="flex:1">
             <div class="fc-name">${esc(r.client_name)}</div>
             <div class="fc-remark">${esc(r.remark)}</div>
@@ -93,25 +93,8 @@ async function loadDashboard() {
             <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">TODAY</div>
             <div style="font-weight:600;font-size:.95rem;color:var(--primary)">${r.follow_up_time ? r.follow_up_time.substring(0,5) : '09:00'}</div>
           </div>
-          <button class="btn btn-sm btn-danger btn-delete-followup" data-action="loadDashboard">Delete</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteFollowup(${r.id}, 'loadDashboard')">Delete</button>
         </div>`).join('');
-
-  // Add event listeners to delete buttons
-  list.querySelectorAll('.btn-delete-followup').forEach((btn, index) => {
-    btn.addEventListener('click', function() {
-      const card = this.closest('.followup-card');
-      const remark = (this.dataset.action === 'loadDashboard' ? today : filtered)[index];
-      if (!remark || !remark.id) {
-        console.log('Remark object:', remark);
-        toast('Error: Could not find follow-up ID', 'error');
-        return;
-      }
-      const id = remark.id;
-      const action = this.dataset.action;
-      console.log('Deleting remark ID:', id, 'Full remark:', remark);
-      deleteFollowup(id, action);
-    });
-  });
 }
 
 // ── Clients ────────────────────────────────────────────
@@ -327,7 +310,7 @@ function renderFilteredFollowups(rows) {
         const rDate = r.follow_up_date?.split('T')[0] || '';
         const timeStr = r.follow_up_time ? r.follow_up_time.substring(0, 5) : '09:00';
         return `
-        <div class="followup-card ${rDate === today ? 'today' : ''}" data-remark-id="${r.id}">
+        <div class="followup-card ${rDate === today ? 'today' : ''}">
           <div>
             <div class="fc-name">${esc(r.client_name)}</div>
             <div class="fc-remark">${esc(r.remark)}</div>
@@ -337,26 +320,9 @@ function renderFilteredFollowups(rows) {
             <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">${rDate}</div>
             <div style="font-weight:600;font-size:.95rem;color:var(--primary)">${timeStr}</div>
           </div>
-          <button class="btn btn-sm btn-danger btn-delete-followup" data-action="loadUpcoming">Delete</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteFollowup(${r.id}, 'loadUpcoming')">Delete</button>
         </div>`;
       }).join('');
-
-  // Add event listeners to delete buttons
-  list.querySelectorAll('.btn-delete-followup').forEach((btn, index) => {
-    btn.addEventListener('click', function() {
-      const card = this.closest('.followup-card');
-      const remark = (this.dataset.action === 'loadDashboard' ? today : filtered)[index];
-      if (!remark || !remark.id) {
-        console.log('Remark object:', remark);
-        toast('Error: Could not find follow-up ID', 'error');
-        return;
-      }
-      const id = remark.id;
-      const action = this.dataset.action;
-      console.log('Deleting remark ID:', id, 'Full remark:', remark);
-      deleteFollowup(id, action);
-    });
-  });
 }
 
 // ── Users (admin only) ─────────────────────────────────
@@ -385,7 +351,7 @@ async function deleteFollowup(id, refreshFunc) {
   if (!confirm('Delete this follow-up?')) return;
   try {
     console.log('Deleting follow-up with ID:', id);
-    const url = `/api/remarks/${id}`;
+    const url = `/remarks/${id}`;
     console.log('API URL:', url);
 
     const res = await apiFetch(url, { method: 'DELETE' });
