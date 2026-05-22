@@ -97,11 +97,18 @@ async function loadDashboard() {
         </div>`).join('');
 
   // Add event listeners to delete buttons
-  list.querySelectorAll('.btn-delete-followup').forEach(btn => {
+  list.querySelectorAll('.btn-delete-followup').forEach((btn, index) => {
     btn.addEventListener('click', function() {
       const card = this.closest('.followup-card');
-      const id = card.dataset.remarkId;
+      const remark = (this.dataset.action === 'loadDashboard' ? today : filtered)[index];
+      if (!remark || !remark.id) {
+        console.log('Remark object:', remark);
+        toast('Error: Could not find follow-up ID', 'error');
+        return;
+      }
+      const id = remark.id;
       const action = this.dataset.action;
+      console.log('Deleting remark ID:', id, 'Full remark:', remark);
       deleteFollowup(id, action);
     });
   });
@@ -335,11 +342,18 @@ function renderFilteredFollowups(rows) {
       }).join('');
 
   // Add event listeners to delete buttons
-  list.querySelectorAll('.btn-delete-followup').forEach(btn => {
+  list.querySelectorAll('.btn-delete-followup').forEach((btn, index) => {
     btn.addEventListener('click', function() {
       const card = this.closest('.followup-card');
-      const id = card.dataset.remarkId;
+      const remark = (this.dataset.action === 'loadDashboard' ? today : filtered)[index];
+      if (!remark || !remark.id) {
+        console.log('Remark object:', remark);
+        toast('Error: Could not find follow-up ID', 'error');
+        return;
+      }
+      const id = remark.id;
       const action = this.dataset.action;
+      console.log('Deleting remark ID:', id, 'Full remark:', remark);
       deleteFollowup(id, action);
     });
   });
