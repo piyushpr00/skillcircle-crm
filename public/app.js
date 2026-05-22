@@ -74,6 +74,7 @@ async function loadDashboard() {
 
   const badge = document.getElementById('today-badge');
   badge.textContent = today.length;
+  console.log('Today followups, sample:', today.length > 0 ? today[0] : 'no followups');
 
   const list = document.getElementById('today-list');
   list.innerHTML = today.length === 0
@@ -290,6 +291,7 @@ async function loadUpcoming() {
 }
 
 function renderFilteredFollowups(rows) {
+  console.log('Rendering followups, sample data:', rows.length > 0 ? rows[0] : 'no rows');
   const dateFrom = document.getElementById('filter-date-from')?.value || '';
   const dateTo = document.getElementById('filter-date-to')?.value || '';
 
