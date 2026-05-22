@@ -3,6 +3,70 @@ const { sendNotificationEmail } = require('./email');
 
 const NOTIFICATION_MINUTES = [15, 10, 5, 3]; // Send notifications 15, 10, 5 and 3 minutes before
 
+// Helper function to check if notification should be sent based on user preferences
+async function shouldSendNotification(userId, minutesBefore, followUpTime) {
+  try {
+    // Get user's notification preferences
+    const { rows: notifPrefs } = await pool.query(
+      'SELECT * FROM notification_preferences WHERE user_id = $1',
+      [userId]
+    );
+
+    if (notifPrefs.length === 0) {
+      // Default: send all notifications if no preferences set
+      return true;
+    }
+
+    const prefs = notifPrefs[0];
+
+    // Check if this specific timing is enabled
+    const timingMap = {
+      15: prefs.followup_15min,
+      10: prefs.followup_10min,
+      5: prefs.followup_5min,
+      3: prefs.followup_3min
+    };
+
+    if (!timingMap[minutesBefore]) {
+      return false;
+    }
+
+    // Check quiet hours
+    if (prefs.mute_start_time && prefs.mute_end_time) {
+      const [followUpHours, followUpMins] = followUpTime.split(':').map(Number);
+      const followUpMinutesOfDay = followUpHours * 60 + followUpMins;
+
+      const [muteStartHours, muteStartMins] = prefs.mute_start_time.split(':').map(Number);
+      const muteStartMinutesOfDay = muteStartHours * 60 + muteStartMins;
+
+      const [muteEndHours, muteEndMins] = prefs.mute_end_time.split(':').map(Number);
+      const muteEndMinutesOfDay = muteEndHours * 60 + muteEndMins;
+
+      // Handle overnight quiet hours (e.g., 22:00 to 09:00)
+      const inQuietHours = muteStartMinutesOfDay > muteEndMinutesOfDay
+        ? (followUpMinutesOfDay >= muteStartMinutesOfDay || followUpMinutesOfDay < muteEndMinutesOfDay)
+        : (followUpMinutesOfDay >= muteStartMinutesOfDay && followUpMinutesOfDay < muteEndMinutesOfDay);
+
+      if (inQuietHours) {
+        return false;
+      }
+    }
+
+    // Check mute weekends
+    if (prefs.mute_weekends) {
+      const dayOfWeek = new Date().getDay(); // 0=Sunday, 6=Saturday
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        return false;
+      }
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error checking notification preferences:', err.message);
+    return true; // Default to sending if there's an error
+  }
+}
+
 async function checkAndSendNotifications() {
   try {
     for (const minutesBefore of NOTIFICATION_MINUTES) {
@@ -42,6 +106,14 @@ async function checkAndSendNotifications() {
 
       for (const remark of remarks) {
         try {
+          // Check if user wants this notification
+          const shouldSend = await shouldSendNotification(remark.assigned_to, minutesBefore, remark.follow_up_time);
+
+          if (!shouldSend) {
+            console.log(`[NOTIFICATION SKIPPED] User preferences prevent ${minutesBefore}min notification for remark ${remark.id}`);
+            continue;
+          }
+
           // Record the notification as sent
           await pool.query(`
             INSERT INTO notifications (remark_id, minutes_before, sent_at)
@@ -58,8 +130,15 @@ async function checkAndSendNotifications() {
 
           console.log(`[NOTIFICATION] ${minutesBefore}min before: ${message}`);
 
-          // Send email notification if user has email
-          if (remark.email) {
+          // Get user's notification preferences
+          const { rows: notifPrefs } = await pool.query(
+            'SELECT * FROM notification_preferences WHERE user_id = $1',
+            [remark.assigned_to]
+          );
+          const prefs = notifPrefs[0] || {};
+
+          // Send email notification if user has email and has enabled email notifications
+          if (remark.email && prefs.email_notifications !== false) {
             const followupDateTime = `${remark.follow_up_date} at ${remark.follow_up_time}`;
             await sendNotificationEmail(
               remark.email,

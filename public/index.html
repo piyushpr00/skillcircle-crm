@@ -18,9 +18,10 @@
       <button class="nav-btn" data-view="followups">Follow-ups</button>
       <button class="nav-btn admin-only" data-view="users" style="display:none">Users</button>
     </nav>
-    <div class="sidebar-footer">
+    <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 8px;">
       <div class="user-chip" id="user-chip"></div>
-      <button class="nav-btn" id="btn-logout">Logout</button>
+      <button class="nav-btn" data-view="settings" style="display: block; width: 100%;">⚙️ Settings</button>
+      <button class="nav-btn" id="btn-logout" style="display: block; width: 100%;">Logout</button>
     </div>
   </aside>
 
@@ -29,6 +30,18 @@
     <section id="view-dashboard" class="view active">
       <h1>Dashboard</h1>
       <div class="stats-row" id="stats-row"></div>
+
+      <div class="panel">
+        <h2>📝 Remarks Overview</h2>
+        <div class="remarks-filters">
+          <button class="filter-btn active" data-filter="all">All Remarks</button>
+          <button class="filter-btn" data-filter="today">Today</button>
+          <button class="filter-btn" data-filter="upcoming">Upcoming</button>
+          <button class="filter-btn" data-filter="overdue">Overdue</button>
+        </div>
+        <div id="remarks-dashboard" class="remarks-dashboard"></div>
+      </div>
+
       <div class="panel">
         <h2>Today's Follow-ups <span class="badge danger" id="today-badge">0</span></h2>
         <div id="today-list" class="followup-list"></div>
@@ -96,11 +109,310 @@
         <h1>Team Members</h1>
         <button class="btn btn-primary" id="btn-add-user">+ Add Member</button>
       </div>
+      <div id="bulk-delete-toolbar-users" class="bulk-delete-toolbar" style="display:none">
+        <div class="toolbar-content">
+          <input type="checkbox" id="select-all-users" title="Select all"/>
+          <span id="selection-count-users">0 selected</span>
+          <button class="btn btn-secondary" id="btn-disable-selected-users">Disable Selected</button>
+          <button class="btn btn-secondary" id="btn-enable-selected-users">Enable Selected</button>
+          <button class="btn btn-danger" id="btn-delete-selected-users">Delete Selected</button>
+        </div>
+      </div>
       <div id="user-table-wrap">
         <table class="table">
-          <thead><tr><th>Username</th><th>Role</th><th>Added</th><th>Action</th></tr></thead>
+          <thead>
+            <tr>
+              <th style="width:40px"><input type="checkbox" id="select-all-users-table" title="Select all"/></th>
+              <th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Last Login</th><th>Actions</th>
+            </tr>
+          </thead>
           <tbody id="user-tbody"></tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view">
+      <h1>Settings</h1>
+      <div class="settings-container">
+        <div class="settings-tabs">
+          <button class="settings-tab active" data-tab="profile">👤 Profile</button>
+          <button class="settings-tab" data-tab="general">🎨 General</button>
+          <button class="settings-tab" data-tab="notifications">🔔 Notifications</button>
+          <button class="settings-tab" data-tab="security">🔒 Security</button>
+          <button class="settings-tab" data-tab="clock">⏰ Clock & Alarm</button>
+          <button class="settings-tab" data-tab="data">📊 Data & Privacy</button>
+          <button class="settings-tab admin-only" data-tab="system" style="display:none">⚙️ System</button>
+        </div>
+
+        <!-- Profile Tab -->
+        <div class="settings-tab-content active" id="tab-profile">
+          <h2>Profile Settings</h2>
+          <form id="profile-form" class="settings-form">
+            <div class="form-grid">
+              <div class="field"><label>Full Name</label><input type="text" id="sp-full-name" placeholder="Your full name"/></div>
+              <div class="field"><label>Email</label><input type="email" id="sp-email" placeholder="your@email.com"/></div>
+              <div class="field"><label>Phone</label><input type="tel" id="sp-phone" placeholder="+1 (555) 123-4567"/></div>
+              <div class="field"><label>Bio</label><textarea id="sp-bio" rows="2" placeholder="Tell us about yourself..."></textarea></div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save Profile</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- General Settings Tab -->
+        <div class="settings-tab-content" id="tab-general">
+          <h2>General Settings</h2>
+          <form id="general-form" class="settings-form">
+            <div class="settings-group">
+              <label class="setting-label">Theme</label>
+              <div class="setting-options">
+                <label class="radio-label"><input type="radio" name="theme" value="light"/> Light Mode</label>
+                <label class="radio-label"><input type="radio" name="theme" value="dark"/> Dark Mode</label>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label>Timezone</label>
+                <select id="sg-timezone">
+                  <option value="IST">IST (UTC+5:30)</option>
+                  <option value="UTC">UTC</option>
+                  <option value="EST">EST (UTC-5)</option>
+                  <option value="PST">PST (UTC-8)</option>
+                  <option value="GMT">GMT (UTC+0)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Date Format</label>
+                <select id="sg-date-format">
+                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Time Format</label>
+                <select id="sg-time-format">
+                  <option value="24h">24-hour</option>
+                  <option value="12h">12-hour (AM/PM)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save Settings</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Notifications Tab -->
+        <div class="settings-tab-content" id="tab-notifications">
+          <h2>Notification Settings</h2>
+          <form id="notifications-form" class="settings-form">
+            <div class="settings-group">
+              <label class="setting-label">Notification Channels</label>
+              <div class="toggle-group">
+                <label class="toggle-label">
+                  <input type="checkbox" id="sn-email-notif" checked/>
+                  <span>Email Notifications</span>
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" id="sn-sound-notif" checked/>
+                  <span>Sound Notifications</span>
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" id="sn-browser-notif" checked/>
+                  <span>Browser Notifications</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <label class="setting-label">Notification Timing</label>
+              <div class="toggle-group">
+                <label class="toggle-label">
+                  <input type="checkbox" id="sn-15min" checked/>
+                  <span>15 minutes before</span>
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" id="sn-10min" checked/>
+                  <span>10 minutes before</span>
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" id="sn-5min" checked/>
+                  <span>5 minutes before</span>
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" id="sn-3min" checked/>
+                  <span>3 minutes before</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <label class="setting-label">Quiet Hours</label>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Start Time</label>
+                  <input type="time" id="sn-mute-start"/>
+                </div>
+                <div class="field">
+                  <label>End Time</label>
+                  <input type="time" id="sn-mute-end"/>
+                </div>
+              </div>
+              <label class="toggle-label">
+                <input type="checkbox" id="sn-mute-weekends"/>
+                <span>Mute on weekends</span>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save Preferences</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Security Tab -->
+        <div class="settings-tab-content" id="tab-security">
+          <h2>Security Settings</h2>
+          <div class="settings-group">
+            <h3>Change Password</h3>
+            <form id="password-change-form" class="settings-form">
+              <div class="form-grid" style="grid-template-columns:1fr">
+                <div class="field"><label>Current Password</label><input type="password" id="ss-current-pwd" required/></div>
+                <div class="field"><label>New Password</label><input type="password" id="ss-new-pwd" required/></div>
+                <div class="field"><label>Confirm Password</label><input type="password" id="ss-confirm-pwd" required/></div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Change Password</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="settings-group">
+            <h3>Active Sessions</h3>
+            <div id="sessions-list" class="sessions-list">
+              <p class="muted">Loading sessions...</p>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <h3>Login History</h3>
+            <div id="activity-log" class="activity-table">
+              <p class="muted">Loading activity log...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clock & Alarm Tab -->
+        <div class="settings-tab-content" id="tab-clock">
+          <h2>Clock & Alarm Settings</h2>
+          <form id="clock-form" class="settings-form">
+            <div class="settings-group">
+              <label class="setting-label">Working Hours</label>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Work Start Time</label>
+                  <input type="time" id="sc-work-start" value="09:00"/>
+                </div>
+                <div class="field">
+                  <label>Work End Time</label>
+                  <input type="time" id="sc-work-end" value="17:00"/>
+                </div>
+              </div>
+              <label class="toggle-label">
+                <input type="checkbox" id="sc-disable-outside"/>
+                <span>Disable notifications outside working hours</span>
+              </label>
+            </div>
+
+            <div class="settings-group">
+              <label class="setting-label">Do Not Disturb</label>
+              <div class="form-grid">
+                <div class="field">
+                  <label>DND Start Time</label>
+                  <input type="time" id="sc-dnd-start"/>
+                </div>
+                <div class="field">
+                  <label>DND End Time</label>
+                  <input type="time" id="sc-dnd-end"/>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save Schedule</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Data & Privacy Tab -->
+        <div class="settings-tab-content" id="tab-data">
+          <h2>Data & Privacy</h2>
+          <div class="settings-group">
+            <h3>Your Data</h3>
+            <div class="data-stats">
+              <div class="stat-item">
+                <span class="stat-label">Clients</span>
+                <span class="stat-value" id="data-clients">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Remarks</span>
+                <span class="stat-value" id="data-remarks">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Follow-ups</span>
+                <span class="stat-value" id="data-followups">0</span>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary" id="btn-export-data">📥 Export My Data</button>
+          </div>
+
+          <div class="settings-group">
+            <h3>Account Status</h3>
+            <p class="text-muted">Account created: <span id="account-created">--</span></p>
+            <p class="text-muted">Last login: <span id="last-login">--</span></p>
+          </div>
+
+          <div class="settings-group danger">
+            <h3>Delete Account</h3>
+            <p class="text-muted">Permanently delete your account and all associated data. This action cannot be undone.</p>
+            <button type="button" class="btn btn-danger" id="btn-delete-account">🗑️ Delete Account</button>
+          </div>
+        </div>
+
+        <!-- System Settings Tab (Admin Only) -->
+        <div class="settings-tab-content" id="tab-system">
+          <h2>System Settings</h2>
+          <div class="settings-group">
+            <h3>Global Notification Defaults</h3>
+            <form id="system-notif-form" class="settings-form">
+              <div class="form-grid">
+                <div class="field">
+                  <label>Default Digest Time</label>
+                  <input type="time" id="sys-digest-time" value="09:00"/>
+                </div>
+              </div>
+              <div class="toggle-group">
+                <label class="toggle-label">
+                  <input type="checkbox" id="sys-email-default" checked/>
+                  <span>Email notifications enabled by default</span>
+                </label>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Defaults</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="settings-group">
+            <h3>Audit Log</h3>
+            <div id="system-audit-log" class="activity-table">
+              <p class="muted">Loading system audit log...</p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -213,6 +525,120 @@
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" id="cancel-user">Cancel</button>
           <button type="submit" class="btn btn-primary">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- EDIT USER MODAL -->
+  <div class="modal-overlay" id="user-edit-modal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2>Manage Executive Account</h2>
+        <button class="close-btn" id="close-edit-user-modal">&times;</button>
+      </div>
+      <form id="user-edit-form">
+        <input type="hidden" id="edit-user-id"/>
+
+        <!-- Account Section -->
+        <div class="form-section">
+          <h3 class="form-section-title">Account Information</h3>
+          <div class="form-grid">
+            <div class="field"><label>Username *</label><input type="text" id="eu-username" required/></div>
+            <div class="field"><label>Email</label><input type="email" id="eu-email" placeholder="user@example.com"/></div>
+            <div class="field"><label>Role</label><select id="eu-role"><option value="executive">Executive</option><option value="admin">Admin</option></select></div>
+            <div class="field">
+              <label>Status</label>
+              <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+                <span id="eu-status-badge" class="user-status status-active">Active</span>
+                <button type="button" class="btn btn-sm btn-secondary" id="btn-toggle-status">Toggle</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Personal Information Section -->
+        <div class="form-section">
+          <h3 class="form-section-title">Personal Information</h3>
+          <div class="form-grid">
+            <div class="field"><label>Full Name</label><input type="text" id="eu-full-name" placeholder="John Doe"/></div>
+            <div class="field"><label>Phone</label><input type="tel" id="eu-phone" placeholder="+1 (555) 123-4567"/></div>
+            <div class="field"><label>Date of Birth</label><input type="date" id="eu-dob"/></div>
+            <div class="field"><label>Bio</label><textarea id="eu-bio" rows="2" placeholder="Brief bio or description..."></textarea></div>
+          </div>
+        </div>
+
+        <!-- Professional Information Section -->
+        <div class="form-section">
+          <h3 class="form-section-title">Professional Information</h3>
+          <div class="form-grid">
+            <div class="field"><label>Position/Title</label><input type="text" id="eu-position" placeholder="e.g., Sales Manager"/></div>
+            <div class="field"><label>Department</label><input type="text" id="eu-department" placeholder="e.g., Sales"/></div>
+            <div class="field"><label>Joining Date</label><input type="date" id="eu-joining-date"/></div>
+          </div>
+        </div>
+
+        <!-- Address Section -->
+        <div class="form-section">
+          <h3 class="form-section-title">Address</h3>
+          <div class="form-grid">
+            <div class="field full"><label>Street Address</label><input type="text" id="eu-address" placeholder="123 Main Street"/></div>
+            <div class="field"><label>City</label><input type="text" id="eu-city" placeholder="New York"/></div>
+            <div class="field"><label>State/Province</label><input type="text" id="eu-state" placeholder="NY"/></div>
+            <div class="field"><label>Postal Code</label><input type="text" id="eu-postal-code" placeholder="10001"/></div>
+            <div class="field"><label>Country</label><input type="text" id="eu-country" placeholder="United States"/></div>
+          </div>
+        </div>
+
+        <!-- Emergency Contact Section -->
+        <div class="form-section">
+          <h3 class="form-section-title">Emergency Contact</h3>
+          <div class="form-grid">
+            <div class="field"><label>Contact Name</label><input type="text" id="eu-emergency-contact" placeholder="Jane Doe"/></div>
+            <div class="field"><label>Contact Phone</label><input type="tel" id="eu-emergency-phone" placeholder="+1 (555) 987-6543"/></div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="cancel-edit-user">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save All Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- RESET PASSWORD MODAL -->
+  <div class="modal-overlay" id="password-reset-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Reset Password</h2>
+        <button class="close-btn" id="close-reset-password-modal">&times;</button>
+      </div>
+      <form id="password-reset-form">
+        <input type="hidden" id="reset-user-id"/>
+        <div class="form-grid" style="grid-template-columns:1fr">
+          <div class="field">
+            <label>Username</label>
+            <input type="text" id="pr-username" disabled style="background: #f1f5f9; cursor: not-allowed;"/>
+          </div>
+          <div class="field">
+            <label>New Password</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="pr-password" placeholder="Enter or generate password" style="flex: 1;"/>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-generate-password" title="Generate random password">🔄 Gen</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Confirm Password</label>
+            <input type="text" id="pr-confirm-password" placeholder="Confirm password"/>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--muted); padding: 8px 0;">
+            ✓ Password must be at least 8 characters
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="cancel-reset-password">Cancel</button>
+          <button type="submit" class="btn btn-danger">Reset Password</button>
         </div>
       </form>
     </div>

@@ -7,6 +7,7 @@ const XLSX = require('xlsx');
 const { pool, init } = require('./db');
 const { auth, adminOnly } = require('./middleware');
 const authRouter = require('./auth');
+const settingsRouter = require('./settings');
 const { getUnreadNotifications, startNotificationScheduler } = require('./notifications');
 
 const app = express();
@@ -20,6 +21,7 @@ app.use('/api/auth', authRouter);
 
 // Protected
 app.use('/api', auth);
+app.use('/api', settingsRouter);
 
 // ── Clients ────────────────────────────────────────────
 app.get('/api/clients', async (req, res) => {
@@ -145,6 +147,17 @@ app.get('/api/followups/upcoming', async (req, res) => {
       FROM remarks r JOIN clients c ON r.client_id=c.id
       WHERE r.follow_up_date>=CURRENT_DATE
       ORDER BY r.follow_up_date ASC, r.follow_up_time ASC LIMIT 50
+    `);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/remarks', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT r.*, c.name AS client_name, c.number, c.email
+      FROM remarks r JOIN clients c ON r.client_id=c.id
+      ORDER BY r.follow_up_date DESC, r.follow_up_time DESC LIMIT 100
     `);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }

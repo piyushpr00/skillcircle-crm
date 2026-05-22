@@ -22,6 +22,23 @@ async function init() {
     );
 
     ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS department TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS position TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS city TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS state TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS postal_code TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS joining_date DATE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_contact TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_phone TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
 
     CREATE TABLE IF NOT EXISTS clients (
       id SERIAL PRIMARY KEY,
@@ -63,6 +80,58 @@ async function init() {
       minutes_before INTEGER,
       message TEXT,
       timestamp TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      theme TEXT DEFAULT 'light',
+      timezone TEXT DEFAULT 'IST',
+      language TEXT DEFAULT 'en',
+      date_format TEXT DEFAULT 'DD/MM/YYYY',
+      time_format TEXT DEFAULT '24h',
+      first_day_of_week INT DEFAULT 1,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS notification_preferences (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      email_notifications BOOLEAN DEFAULT true,
+      sound_notifications BOOLEAN DEFAULT true,
+      browser_notifications BOOLEAN DEFAULT true,
+      followup_15min BOOLEAN DEFAULT true,
+      followup_10min BOOLEAN DEFAULT true,
+      followup_5min BOOLEAN DEFAULT true,
+      followup_3min BOOLEAN DEFAULT true,
+      daily_digest BOOLEAN DEFAULT false,
+      digest_time TIME DEFAULT '09:00:00',
+      mute_start_time TIME,
+      mute_end_time TIME,
+      mute_weekends BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS user_activity_log (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      action TEXT NOT NULL,
+      ip_address TEXT,
+      user_agent TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS login_sessions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT UNIQUE,
+      ip_address TEXT,
+      user_agent TEXT,
+      login_at TIMESTAMP DEFAULT NOW(),
+      expires_at TIMESTAMP,
+      logout_at TIMESTAMP
     );
   `);
 

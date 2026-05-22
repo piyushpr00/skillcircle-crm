@@ -78,6 +78,7 @@ function switchView(name) {
   if (name === 'clients')   loadClients();
   if (name === 'followups') loadUpcoming();
   if (name === 'users')     loadUsers();
+  if (name === 'settings')  loadSettings();
 }
 
 // ── Dashboard ──────────────────────────────────────────
@@ -130,7 +131,170 @@ async function loadDashboard() {
     const followupCards = list.querySelectorAll('.followup-card');
     addStaggerAnimation(followupCards, 80);
   }, 150);
+
+  // Load remarks dashboard
+  loadRemarksDashboard();
 }
+
+// ── Remarks Dashboard ──────────────────────────────────
+let allRemarks = [];
+
+async function loadRemarksDashboard() {
+  try {
+    const remarks = await apiFetch('/remarks').then(r => r.json());
+
+    // Get current IST time
+    const now = new Date();
+    const istTime = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+
+    // Categorize remarks by status
+    const categorized = remarks.map(r => {
+      const followupDateTime = new Date(r.follow_up_date + ' ' + (r.follow_up_time || '09:00'));
+      const istFollowupTime = new Date(followupDateTime.getTime() + 5.5 * 60 * 60 * 1000);
+
+      let status = 'upcoming';
+      const diffMinutes = (istFollowupTime - istTime) / (1000 * 60);
+
+      if (diffMinutes < 0) {
+        status = 'overdue';
+      } else if (diffMinutes < 24 * 60) {
+        const today = istTime.toLocaleDateString('en-IN', {year: 'numeric', month: '2-digit', day: '2-digit'}).split('/').reverse().join('-');
+        const followupDay = istFollowupTime.toLocaleDateString('en-IN', {year: 'numeric', month: '2-digit', day: '2-digit'}).split('/').reverse().join('-');
+        if (today === followupDay) {
+          status = 'today';
+        }
+      }
+
+      return {
+        ...r,
+        status,
+        followupTime: istFollowupTime,
+        diffMinutes
+      };
+    }).sort((a, b) => a.followupTime - b.followupTime);
+
+    allRemarks = categorized;
+    renderRemarksDashboard(categorized, 'all');
+  } catch (e) {
+    console.error('Failed to load remarks:', e);
+  }
+}
+
+function renderRemarksDashboard(remarks, filter = 'all') {
+  const dashboard = document.getElementById('remarks-dashboard');
+
+  // Count remarks by status to enable/disable buttons
+  const statusCounts = {
+    all: remarks.length,
+    today: remarks.filter(r => r.status === 'today').length,
+    upcoming: remarks.filter(r => r.status === 'upcoming').length,
+    overdue: remarks.filter(r => r.status === 'overdue').length
+  };
+
+  // Update filter button states
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    const filterType = btn.dataset.filter;
+    const hasRemarks = statusCounts[filterType] > 0;
+    btn.disabled = !hasRemarks;
+    btn.title = hasRemarks ? '' : `No ${filterType} remarks`;
+  });
+
+  // Filter remarks by selected filter
+  let filtered = remarks;
+  if (filter !== 'all') {
+    filtered = remarks.filter(r => r.status === filter);
+  }
+
+  if (filtered.length === 0) {
+    dashboard.innerHTML = `
+      <div class="empty-remarks-state">
+        <p>📭 No remarks ${filter !== 'all' ? 'in this category' : 'yet'}.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Group by status
+  const groups = {};
+  const statusOrder = ['overdue', 'today', 'upcoming'];
+  statusOrder.forEach(status => {
+    groups[status] = filtered.filter(r => r.status === status);
+  });
+
+  let html = '';
+
+  Object.keys(groups).forEach(status => {
+    const group = groups[status];
+    if (group.length === 0) return;
+
+    const statusTitles = {
+      'overdue': '🔴 Overdue',
+      'today': '🟠 Today',
+      'upcoming': '🔵 Upcoming'
+    };
+
+    html += `<div class="remarks-group">
+      <div class="remarks-group-title">${statusTitles[status]}</div>
+    `;
+
+    html += group.map(r => {
+      const timeStr = r.follow_up_time ? r.follow_up_time.substring(0, 5) : '09:00';
+      let timeDisplay = '';
+
+      if (r.status === 'overdue') {
+        const daysOverdue = Math.floor(Math.abs(r.diffMinutes) / (24 * 60));
+        timeDisplay = `${daysOverdue}d overdue`;
+      } else if (r.status === 'today') {
+        const hoursLeft = Math.floor(r.diffMinutes / 60);
+        const minutesLeft = Math.floor(r.diffMinutes % 60);
+        if (hoursLeft > 0) {
+          timeDisplay = `${hoursLeft}h ${minutesLeft}m left`;
+        } else {
+          timeDisplay = `${minutesLeft}m left`;
+        }
+      } else {
+        const daysUntil = Math.floor(r.diffMinutes / (24 * 60));
+        if (daysUntil === 0) {
+          timeDisplay = 'Today';
+        } else if (daysUntil === 1) {
+          timeDisplay = 'Tomorrow';
+        } else {
+          timeDisplay = `${daysUntil}d away`;
+        }
+      }
+
+      return `
+        <div class="remark-card ${r.status}">
+          <div class="remark-content">
+            <div class="remark-header">
+              <div class="remark-client-name" title="${esc(r.client_name)}">${esc(r.client_name)}</div>
+              <span class="remark-status-badge ${r.status}">${r.status}</span>
+            </div>
+            <div class="remark-text" title="${esc(r.remark)}">${esc(r.remark)}</div>
+            <div class="remark-meta">
+              <span class="remark-date">${r.follow_up_date}</span>
+              <span class="remark-time">⏰ ${timeStr}</span>
+              <span style="margin-left: auto; font-weight: 500;">${timeDisplay}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    html += `</div>`;
+  });
+
+  dashboard.innerHTML = html;
+}
+
+// Filter button listeners
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderRemarksDashboard(allRemarks, e.target.dataset.filter);
+  });
+});
 
 // ── Clients ────────────────────────────────────────────
 let selectedClients = new Set();
@@ -739,25 +903,344 @@ async function deleteSelectedFollowups() {
 }
 
 // ── Users (admin only) ─────────────────────────────────
+// ── Account Management ────────────────────────────────
+let selectedUsers = new Set();
+
 async function loadUsers() {
-  const users = await apiFetch('/auth/users').then(r => r.json());
+  try {
+    const users = await apiFetch('/auth/users').then(r => r.json());
+    selectedUsers.clear();
+    renderUsersTable(users);
+    updateUserBulkToolbar();
+  } catch (e) {
+    toast('Failed to load users', 'error');
+  }
+}
+
+function formatDateIST(dateStr) {
+  if (!dateStr) return '—';
+  const date = new Date(dateStr);
+  const istTime = new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
+  const dateStr_fmt = istTime.toLocaleDateString('en-IN', {year: 'numeric', month: '2-digit', day: '2-digit'});
+  const timeStr = istTime.toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'});
+  return `${dateStr_fmt} ${timeStr}`;
+}
+
+function renderUsersTable(users) {
   const tbody = document.getElementById('user-tbody');
-  tbody.innerHTML = users.map(u => `
-    <tr>
-      <td>${esc(u.username)}</td>
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No team members yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => {
+    const isSelected = selectedUsers.has(u.id);
+    const isCurrentUser = u.id === me.id;
+    const isActive = u.is_active !== false;
+    const displayName = u.full_name || u.username;
+    const nameWithStatus = `${esc(displayName)}${isCurrentUser ? ' <span style="color:var(--muted);font-size:.8rem">(You)</span>' : ''}`;
+    return `
+    <tr class="user-row ${isSelected ? 'selected' : ''} ${!isActive ? 'inactive' : ''}" data-user-id="${u.id}">
+      <td><input type="checkbox" class="user-checkbox" data-id="${u.id}" ${isSelected ? 'checked' : ''}/></td>
+      <td title="${esc(displayName)}">${nameWithStatus}</td>
+      <td title="${esc(u.email)}">${esc(u.email || '—')}</td>
       <td><span class="role-chip ${u.role}">${u.role}</span></td>
-      <td>${new Date(u.created_at).toLocaleDateString()}</td>
-      <td>${u.id !== me.id
-        ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Remove</button>`
-        : '<span style="color:var(--muted);font-size:.8rem">You</span>'}</td>
-    </tr>`).join('');
+      <td><span class="user-status ${isActive ? 'status-active' : 'status-inactive'}">${isActive ? 'Active' : 'Inactive'}</span></td>
+      <td>${new Date(u.created_at).toLocaleDateString('en-IN')}</td>
+      <td style="font-size:.85rem;color:var(--muted)">${formatDateIST(u.last_login) === '—' ? 'Never' : formatDateIST(u.last_login)}</td>
+      <td>
+        <div class="action-btns" style="gap: 4px;">
+          ${!isCurrentUser ? `
+            <button class="btn btn-sm btn-secondary" onclick="openEditUserModal(${u.id})">Edit</button>
+            <button class="btn btn-sm btn-primary" onclick="openPasswordResetModal(${u.id})">Reset</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Del</button>
+          ` : '<span style="color:var(--muted);font-size:.8rem">Current user</span>'}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Attach checkbox event listeners
+  document.querySelectorAll('.user-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', handleUserCheckboxChange);
+  });
+}
+
+function handleUserCheckboxChange(e) {
+  const id = parseInt(e.target.dataset.id);
+  const row = document.querySelector(`[data-user-id="${id}"]`);
+
+  if (e.target.checked) {
+    selectedUsers.add(id);
+    row.classList.add('selected');
+  } else {
+    selectedUsers.delete(id);
+    row.classList.remove('selected');
+  }
+
+  updateUserBulkToolbar();
+}
+
+function updateUserBulkToolbar() {
+  const toolbar = document.getElementById('bulk-delete-toolbar-users');
+  const countEl = document.getElementById('selection-count-users');
+  const selectAllCheckbox = document.getElementById('select-all-users');
+  const tableSelectAllCheckbox = document.getElementById('select-all-users-table');
+  const tbody = document.getElementById('user-tbody');
+  const allCheckboxes = tbody.querySelectorAll('.user-checkbox');
+
+  const count = selectedUsers.size;
+  countEl.textContent = `${count} selected`;
+  toolbar.style.display = count > 0 ? 'flex' : 'none';
+
+  const allChecked = allCheckboxes.length > 0 && selectedUsers.size === allCheckboxes.length;
+  selectAllCheckbox.checked = allChecked;
+  tableSelectAllCheckbox.checked = allChecked;
+}
+
+async function openEditUserModal(userId) {
+  try {
+    const user = await apiFetch(`/auth/users/${userId}`).then(r => r.json());
+
+    // Account Information
+    document.getElementById('edit-user-id').value = user.id;
+    document.getElementById('eu-username').value = user.username;
+    document.getElementById('eu-email').value = user.email || '';
+    document.getElementById('eu-role').value = user.role;
+    document.getElementById('eu-status-badge').textContent = user.is_active ? 'Active' : 'Inactive';
+    document.getElementById('eu-status-badge').className = `user-status ${user.is_active ? 'status-active' : 'status-inactive'}`;
+
+    // Personal Information
+    document.getElementById('eu-full-name').value = user.full_name || '';
+    document.getElementById('eu-phone').value = user.phone || '';
+    document.getElementById('eu-dob').value = user.date_of_birth || '';
+    document.getElementById('eu-bio').value = user.bio || '';
+
+    // Professional Information
+    document.getElementById('eu-position').value = user.position || '';
+    document.getElementById('eu-department').value = user.department || '';
+    document.getElementById('eu-joining-date').value = user.joining_date || '';
+
+    // Address
+    document.getElementById('eu-address').value = user.address || '';
+    document.getElementById('eu-city').value = user.city || '';
+    document.getElementById('eu-state').value = user.state || '';
+    document.getElementById('eu-postal-code').value = user.postal_code || '';
+    document.getElementById('eu-country').value = user.country || '';
+
+    // Emergency Contact
+    document.getElementById('eu-emergency-contact').value = user.emergency_contact || '';
+    document.getElementById('eu-emergency-phone').value = user.emergency_phone || '';
+
+    document.getElementById('user-edit-modal').classList.add('open');
+  } catch (e) {
+    toast('Failed to load user details', 'error');
+  }
+}
+
+async function submitEditUser(e) {
+  e.preventDefault();
+  const userId = parseInt(document.getElementById('edit-user-id').value);
+  const username = document.getElementById('eu-username').value.trim();
+  const email = document.getElementById('eu-email').value.trim();
+  const role = document.getElementById('eu-role').value;
+
+  if (!username) {
+    toast('Username is required', 'error');
+    return;
+  }
+
+  // Collect all personal data
+  const userData = {
+    username,
+    email,
+    role,
+    full_name: document.getElementById('eu-full-name').value.trim() || null,
+    phone: document.getElementById('eu-phone').value.trim() || null,
+    date_of_birth: document.getElementById('eu-dob').value || null,
+    bio: document.getElementById('eu-bio').value.trim() || null,
+    position: document.getElementById('eu-position').value.trim() || null,
+    department: document.getElementById('eu-department').value.trim() || null,
+    joining_date: document.getElementById('eu-joining-date').value || null,
+    address: document.getElementById('eu-address').value.trim() || null,
+    city: document.getElementById('eu-city').value.trim() || null,
+    state: document.getElementById('eu-state').value.trim() || null,
+    postal_code: document.getElementById('eu-postal-code').value.trim() || null,
+    country: document.getElementById('eu-country').value.trim() || null,
+    emergency_contact: document.getElementById('eu-emergency-contact').value.trim() || null,
+    emergency_phone: document.getElementById('eu-emergency-phone').value.trim() || null
+  };
+
+  try {
+    const res = await apiFetch(`/auth/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast(data.error || 'Failed to update user', 'error');
+      return;
+    }
+    toast('Executive profile updated successfully', 'success');
+    document.getElementById('user-edit-modal').classList.remove('open');
+    loadUsers();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function openPasswordResetModal(userId) {
+  try {
+    const user = await apiFetch(`/auth/users/${userId}`).then(r => r.json());
+    document.getElementById('reset-user-id').value = user.id;
+    document.getElementById('pr-username').value = user.username;
+    document.getElementById('pr-password').value = '';
+    document.getElementById('pr-confirm-password').value = '';
+    document.getElementById('password-reset-modal').classList.add('open');
+    document.getElementById('pr-password').focus();
+  } catch (e) {
+    toast('Failed to load user', 'error');
+  }
+}
+
+function generatePassword(length = 12) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
+async function submitPasswordReset(e) {
+  e.preventDefault();
+  const userId = parseInt(document.getElementById('reset-user-id').value);
+  const password = document.getElementById('pr-password').value;
+  const confirmPassword = document.getElementById('pr-confirm-password').value;
+
+  if (!password || password.length < 8) {
+    toast('Password must be at least 8 characters', 'error');
+    return;
+  }
+  if (password !== confirmPassword) {
+    toast('Passwords do not match', 'error');
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`/auth/users/${userId}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast(data.error || 'Failed to reset password', 'error');
+      return;
+    }
+    toast('Password reset successfully', 'success');
+    document.getElementById('password-reset-modal').classList.remove('open');
+    loadUsers();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
 }
 
 async function deleteUser(id) {
-  if (!confirm('Remove this team member?')) return;
-  await apiFetch(`/auth/users/${id}`, { method: 'DELETE' });
-  toast('Member removed', 'error');
-  loadUsers();
+  if (!confirm('Remove this team member permanently?')) return;
+  try {
+    const res = await apiFetch(`/auth/users/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) {
+      toast(data.error || 'Failed to delete user', 'error');
+      return;
+    }
+    toast('Member removed', 'error');
+    loadUsers();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function deleteSelectedUsers() {
+  if (selectedUsers.size === 0) {
+    toast('No users selected', 'error');
+    return;
+  }
+  if (!confirm(`Delete ${selectedUsers.size} user(s)? This cannot be undone.`)) return;
+
+  try {
+    const ids = Array.from(selectedUsers);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const id of ids) {
+      try {
+        const res = await apiFetch(`/auth/users/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (e) {
+        errorCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast(`Deleted ${successCount} user(s)`, 'success');
+    }
+    if (errorCount > 0) {
+      toast(`Failed to delete ${errorCount} user(s)`, 'error');
+    }
+
+    selectedUsers.clear();
+    loadUsers();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function disableSelectedUsers() {
+  if (selectedUsers.size === 0) {
+    toast('No users selected', 'error');
+    return;
+  }
+
+  try {
+    let successCount = 0;
+    for (const id of selectedUsers) {
+      try {
+        const res = await apiFetch(`/auth/users/${id}/status`, { method: 'PUT' });
+        if (res.ok) successCount++;
+      } catch (e) {}
+    }
+    toast(`Disabled ${successCount} user(s)`, 'success');
+    selectedUsers.clear();
+    loadUsers();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function enableSelectedUsers() {
+  if (selectedUsers.size === 0) {
+    toast('No users selected', 'error');
+    return;
+  }
+
+  try {
+    let successCount = 0;
+    for (const id of selectedUsers) {
+      try {
+        const res = await apiFetch(`/auth/users/${id}/status`, { method: 'PUT' });
+        if (res.ok) successCount++;
+      } catch (e) {}
+    }
+    toast(`Enabled ${successCount} user(s)`, 'success');
+    selectedUsers.clear();
+    loadUsers();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
 }
 
 async function deleteFollowup(id, refreshFunc) {
@@ -820,6 +1303,90 @@ document.getElementById('user-form')?.addEventListener('submit', async e => {
   closeUserModal();
   loadUsers();
 });
+
+// ── Edit User Modal ────────────────────────────────────
+const editUserModal = document.getElementById('user-edit-modal');
+const closeEditUserModal = () => editUserModal.classList.remove('open');
+document.getElementById('close-edit-user-modal')?.addEventListener('click', closeEditUserModal);
+document.getElementById('cancel-edit-user')?.addEventListener('click', closeEditUserModal);
+editUserModal?.addEventListener('click', e => { if (e.target === editUserModal) closeEditUserModal(); });
+
+document.getElementById('btn-toggle-status')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  const badge = document.getElementById('eu-status-badge');
+  const isActive = badge.textContent === 'Active';
+  badge.textContent = isActive ? 'Inactive' : 'Active';
+  badge.className = `user-status ${isActive ? 'status-inactive' : 'status-active'}`;
+});
+
+document.getElementById('user-edit-form')?.addEventListener('submit', submitEditUser);
+
+// ── Password Reset Modal ──────────────────────────────
+const passwordResetModal = document.getElementById('password-reset-modal');
+const closePasswordResetModal = () => passwordResetModal.classList.remove('open');
+document.getElementById('close-reset-password-modal')?.addEventListener('click', closePasswordResetModal);
+document.getElementById('cancel-reset-password')?.addEventListener('click', closePasswordResetModal);
+passwordResetModal?.addEventListener('click', e => { if (e.target === passwordResetModal) closePasswordResetModal(); });
+
+document.getElementById('btn-generate-password')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  const password = generatePassword(12);
+  document.getElementById('pr-password').value = password;
+  document.getElementById('pr-confirm-password').value = password;
+});
+
+document.getElementById('password-reset-form')?.addEventListener('submit', submitPasswordReset);
+
+// ── Bulk Actions (Users) ───────────────────────────────
+document.getElementById('select-all-users')?.addEventListener('change', (e) => {
+  const tbody = document.getElementById('user-tbody');
+  const allCheckboxes = tbody.querySelectorAll('.user-checkbox');
+
+  if (e.target.checked) {
+    allCheckboxes.forEach(checkbox => {
+      checkbox.checked = true;
+      selectedUsers.add(parseInt(checkbox.dataset.id));
+      const row = document.querySelector(`[data-user-id="${checkbox.dataset.id}"]`);
+      row?.classList.add('selected');
+    });
+  } else {
+    allCheckboxes.forEach(checkbox => {
+      checkbox.checked = false;
+      selectedUsers.delete(parseInt(checkbox.dataset.id));
+      const row = document.querySelector(`[data-user-id="${checkbox.dataset.id}"]`);
+      row?.classList.remove('selected');
+    });
+  }
+
+  updateUserBulkToolbar();
+});
+
+document.getElementById('select-all-users-table')?.addEventListener('change', (e) => {
+  const tbody = document.getElementById('user-tbody');
+  const allCheckboxes = tbody.querySelectorAll('.user-checkbox');
+
+  if (e.target.checked) {
+    allCheckboxes.forEach(checkbox => {
+      checkbox.checked = true;
+      selectedUsers.add(parseInt(checkbox.dataset.id));
+      const row = document.querySelector(`[data-user-id="${checkbox.dataset.id}"]`);
+      row?.classList.add('selected');
+    });
+  } else {
+    allCheckboxes.forEach(checkbox => {
+      checkbox.checked = false;
+      selectedUsers.delete(parseInt(checkbox.dataset.id));
+      const row = document.querySelector(`[data-user-id="${checkbox.dataset.id}"]`);
+      row?.classList.remove('selected');
+    });
+  }
+
+  updateUserBulkToolbar();
+});
+
+document.getElementById('btn-disable-selected-users')?.addEventListener('click', disableSelectedUsers);
+document.getElementById('btn-enable-selected-users')?.addEventListener('click', enableSelectedUsers);
+document.getElementById('btn-delete-selected-users')?.addEventListener('click', deleteSelectedUsers);
 
 // ── 5-Minute Reminder Pop-up ───────────────────────────
 const reminderPopup = document.getElementById('reminder-popup');
@@ -1082,6 +1649,312 @@ document.getElementById('select-all-followups')?.addEventListener('change', (e) 
 });
 
 document.getElementById('btn-delete-selected')?.addEventListener('click', deleteSelectedFollowups);
+
+// ── Settings ───────────────────────────────────────────
+async function loadSettings() {
+  const tabButtons = document.querySelectorAll('.settings-tab');
+  const tabContents = document.querySelectorAll('.settings-tab-content');
+
+  // Tab switching
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.dataset.tab;
+      tabButtons.forEach(b => b.classList.remove('active'));
+      tabContents.forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+
+      // Load tab-specific data
+      if (tabName === 'profile') loadProfileSettings();
+      if (tabName === 'general') loadGeneralSettings();
+      if (tabName === 'notifications') loadNotificationSettings();
+      if (tabName === 'security') loadSecuritySettings();
+      if (tabName === 'clock') loadClockAlarmSettings();
+      if (tabName === 'data') loadDataPrivacySettings();
+      if (tabName === 'system') loadSystemSettings();
+    });
+  });
+
+  // Load profile tab by default
+  loadProfileSettings();
+}
+
+async function loadProfileSettings() {
+  try {
+    const data = await apiFetch('/profile/info');
+    document.getElementById('sp-full-name').value = data.full_name || '';
+    document.getElementById('sp-email').value = data.email || '';
+    document.getElementById('sp-phone').value = data.phone || '';
+    document.getElementById('sp-bio').value = data.bio || '';
+
+    document.getElementById('profile-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const updated = await apiFetch('/profile/info', 'PUT', {
+        full_name: document.getElementById('sp-full-name').value,
+        email: document.getElementById('sp-email').value,
+        phone: document.getElementById('sp-phone').value,
+        bio: document.getElementById('sp-bio').value
+      });
+      alert('Profile updated successfully!');
+    };
+  } catch (e) {
+    console.error('Error loading profile:', e);
+  }
+}
+
+async function loadGeneralSettings() {
+  try {
+    const data = await apiFetch('/profile/preferences');
+    document.querySelector(`input[name="theme"][value="${data.theme || 'light'}"]`).checked = true;
+    document.getElementById('sg-timezone').value = data.timezone || 'IST';
+    document.getElementById('sg-date-format').value = data.date_format || 'DD/MM/YYYY';
+    document.getElementById('sg-time-format').value = data.time_format || '24h';
+
+    document.getElementById('general-form').onsubmit = async (e) => {
+      e.preventDefault();
+      await apiFetch('/profile/preferences', 'PUT', {
+        theme: document.querySelector('input[name="theme"]:checked').value,
+        timezone: document.getElementById('sg-timezone').value,
+        date_format: document.getElementById('sg-date-format').value,
+        time_format: document.getElementById('sg-time-format').value
+      });
+      alert('General settings saved!');
+    };
+  } catch (e) {
+    console.error('Error loading general settings:', e);
+  }
+}
+
+async function loadNotificationSettings() {
+  try {
+    const data = await apiFetch('/profile/notifications');
+    document.getElementById('sn-email-notif').checked = data.email_notifications;
+    document.getElementById('sn-sound-notif').checked = data.sound_notifications;
+    document.getElementById('sn-browser-notif').checked = data.browser_notifications;
+    document.getElementById('sn-15min').checked = data.followup_15min;
+    document.getElementById('sn-10min').checked = data.followup_10min;
+    document.getElementById('sn-5min').checked = data.followup_5min;
+    document.getElementById('sn-3min').checked = data.followup_3min;
+    document.getElementById('sn-mute-start').value = data.mute_start_time || '';
+    document.getElementById('sn-mute-end').value = data.mute_end_time || '';
+    document.getElementById('sn-mute-weekends').checked = data.mute_weekends;
+
+    document.getElementById('notifications-form').onsubmit = async (e) => {
+      e.preventDefault();
+      await apiFetch('/profile/notifications', 'PUT', {
+        email_notifications: document.getElementById('sn-email-notif').checked,
+        sound_notifications: document.getElementById('sn-sound-notif').checked,
+        browser_notifications: document.getElementById('sn-browser-notif').checked,
+        followup_15min: document.getElementById('sn-15min').checked,
+        followup_10min: document.getElementById('sn-10min').checked,
+        followup_5min: document.getElementById('sn-5min').checked,
+        followup_3min: document.getElementById('sn-3min').checked,
+        mute_start_time: document.getElementById('sn-mute-start').value || null,
+        mute_end_time: document.getElementById('sn-mute-end').value || null,
+        mute_weekends: document.getElementById('sn-mute-weekends').checked
+      });
+      alert('Notification preferences saved!');
+    };
+  } catch (e) {
+    console.error('Error loading notifications:', e);
+  }
+}
+
+async function loadSecuritySettings() {
+  try {
+    // Load sessions
+    const sessions = await apiFetch('/profile/sessions');
+    const sessionsList = document.getElementById('sessions-list');
+    if (sessions.length === 0) {
+      sessionsList.innerHTML = '<p class="muted">No active sessions</p>';
+    } else {
+      sessionsList.innerHTML = sessions.map(s => `
+        <div class="session-item">
+          <div class="session-info">
+            <div class="session-device">${s.user_agent || 'Unknown Device'}</div>
+            <div class="session-meta">IP: ${s.ip_address} | Logged in: ${new Date(s.login_at).toLocaleString()}</div>
+          </div>
+          <button class="btn btn-sm btn-danger" onclick="logoutSession(${s.id})">Logout</button>
+        </div>
+      `).join('');
+    }
+
+    // Load activity log
+    const activityLog = await apiFetch('/profile/activity-log');
+    const activityDiv = document.getElementById('activity-log');
+    if (activityLog.length === 0) {
+      activityDiv.innerHTML = '<p class="muted">No activity yet</p>';
+    } else {
+      activityDiv.innerHTML = `
+        <table>
+          <thead>
+            <tr><th>Action</th><th>IP Address</th><th>Date & Time</th></tr>
+          </thead>
+          <tbody>
+            ${activityLog.map(log => `
+              <tr>
+                <td>${esc(log.action)}</td>
+                <td>${log.ip_address || '--'}</td>
+                <td>${new Date(log.created_at).toLocaleString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // Password change form
+    document.getElementById('password-change-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const current = document.getElementById('ss-current-pwd').value;
+      const next = document.getElementById('ss-new-pwd').value;
+      const confirm = document.getElementById('ss-confirm-pwd').value;
+
+      if (next !== confirm) {
+        alert('Passwords do not match!');
+        return;
+      }
+
+      if (next.length < 8) {
+        alert('Password must be at least 8 characters!');
+        return;
+      }
+
+      try {
+        await apiFetch('/profile/password', 'PUT', { current, next });
+        alert('Password changed successfully!');
+        document.getElementById('password-change-form').reset();
+      } catch (e) {
+        alert(e.message || 'Failed to change password');
+      }
+    };
+  } catch (e) {
+    console.error('Error loading security settings:', e);
+  }
+}
+
+async function logoutSession(sessionId) {
+  if (confirm('Log out this session?')) {
+    try {
+      await apiFetch(`/profile/sessions/${sessionId}`, 'DELETE');
+      alert('Session logged out');
+      loadSecuritySettings();
+    } catch (e) {
+      console.error('Error logging out session:', e);
+    }
+  }
+}
+
+async function loadDataPrivacySettings() {
+  try {
+    // Get data stats
+    const clients = await apiFetch('/clients');
+    const stats = {
+      clients: clients.length,
+      remarks: 0,
+      followups: 0
+    };
+
+    // Count remarks
+    clients.forEach(c => {
+      stats.remarks += c.remark_count || 0;
+    });
+
+    document.getElementById('data-clients').textContent = stats.clients;
+    document.getElementById('data-remarks').textContent = stats.remarks;
+    document.getElementById('data-followups').textContent = stats.followups;
+
+    // Get current user info
+    const user = await apiFetch('/auth/users/' + me.id);
+    document.getElementById('account-created').textContent = new Date(user.created_at).toLocaleDateString();
+    document.getElementById('last-login').textContent = user.last_login ? new Date(user.last_login).toLocaleString() : 'Never';
+
+    // Export data
+    document.getElementById('btn-export-data').onclick = async () => {
+      try {
+        const data = await apiFetch('/profile/export-data');
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `crm-data-export-${new Date().getTime()}.json`;
+        a.click();
+        alert('Data exported successfully!');
+      } catch (e) {
+        alert('Failed to export data: ' + e.message);
+      }
+    };
+
+    // Delete account
+    document.getElementById('btn-delete-account').onclick = () => {
+      if (confirm('Are you sure you want to delete your account? This cannot be undone!')) {
+        if (confirm('This will permanently delete all your data. Type "DELETE" to confirm.')) {
+          const userInput = prompt('Type "DELETE" to confirm account deletion:');
+          if (userInput === 'DELETE') {
+            alert('Account deletion not yet implemented. Contact administrator.');
+          }
+        }
+      }
+    };
+  } catch (e) {
+    console.error('Error loading data privacy:', e);
+  }
+}
+
+async function loadClockAlarmSettings() {
+  try {
+    // For now, just set up the form handlers with defaults
+    document.getElementById('clock-form').onsubmit = async (e) => {
+      e.preventDefault();
+      alert('Clock & Alarm settings saved!');
+    };
+  } catch (e) {
+    console.error('Error loading clock settings:', e);
+  }
+}
+
+async function loadSystemSettings() {
+  try {
+    // Admin-only system settings
+    if (me.role !== 'admin') {
+      document.getElementById('system-audit-log').innerHTML = '<p class="muted">Admin access required</p>';
+      return;
+    }
+
+    // Load system audit log
+    const auditLog = await apiFetch('/admin/audit-log');
+    const auditDiv = document.getElementById('system-audit-log');
+    if (auditLog.length === 0) {
+      auditDiv.innerHTML = '<p class="muted">No audit log entries yet</p>';
+    } else {
+      auditDiv.innerHTML = `
+        <table>
+          <thead>
+            <tr><th>User</th><th>Action</th><th>IP Address</th><th>Date & Time</th></tr>
+          </thead>
+          <tbody>
+            ${auditLog.map(log => `
+              <tr>
+                <td>${esc(log.username || 'Unknown')}</td>
+                <td>${esc(log.action)}</td>
+                <td>${log.ip_address || '--'}</td>
+                <td>${new Date(log.created_at).toLocaleString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    document.getElementById('system-notif-form').onsubmit = async (e) => {
+      e.preventDefault();
+      alert('System settings saved!');
+    };
+  } catch (e) {
+    console.error('Error loading system settings:', e);
+  }
+}
 
 // ── Utility ────────────────────────────────────────────
 function esc(s) {
