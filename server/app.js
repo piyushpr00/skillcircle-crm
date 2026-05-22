@@ -178,6 +178,45 @@ app.get('/api/notifications', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Test Notification (for debugging) ───────────────
+app.post('/api/test-notification', adminOnly, async (req, res) => {
+  try {
+    // Create a test follow-up for 2 minutes from now
+    const now = new Date();
+    const futureTime = new Date(now.getTime() + 2 * 60000); // 2 minutes from now
+
+    const hours = String(futureTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(futureTime.getUTCMinutes()).padStart(2, '0');
+    const testTime = `${hours}:${minutes}:00`;
+    const testDate = futureTime.toISOString().split('T')[0];
+
+    // Create test client
+    const { rows: clientRows } = await pool.query(
+      'INSERT INTO clients (name, number, email) VALUES ($1, $2, $3) RETURNING id',
+      ['TEST_CLIENT', '9999999999', 'test@test.com']
+    );
+    const clientId = clientRows[0].id;
+
+    // Create test remark with follow-up in 2 minutes
+    const { rows: remarkRows } = await pool.query(
+      'INSERT INTO remarks (client_id, remark, follow_up_date, follow_up_time) VALUES ($1, $2, $3, $4) RETURNING id',
+      [clientId, 'TEST NOTIFICATION - This should trigger in 2 minutes', testDate, testTime]
+    );
+
+    res.json({
+      success: true,
+      message: 'Test follow-up created',
+      clientId,
+      remarkId: remarkRows[0].id,
+      testTime,
+      testDate,
+      serverTime: new Date().toISOString(),
+      serverUTCTime: `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`,
+      instruction: 'Wait 2 minutes and check the Recent Notifications panel'
+    });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
 // Lazy DB init flag for serverless
 let _ready = false;
 app.dbInit = async () => {

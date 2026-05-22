@@ -5,16 +5,17 @@ const NOTIFICATION_MINUTES = [5, 3]; // Send notifications 5 and 3 minutes befor
 async function checkAndSendNotifications() {
   try {
     for (const minutesBefore of NOTIFICATION_MINUTES) {
-      // Get current time
+      // Get current UTC time
       const now = new Date();
-      const currentTime = now.getHours().toString().padStart(2, '0') + ':' +
-                         now.getMinutes().toString().padStart(2, '0');
+      const hours = String(now.getUTCHours()).padStart(2, '0');
+      const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+      const currentTime = `${hours}:${minutes}`;
 
-      // Get today's date in YYYY-MM-DD format
+      // Get today's date in YYYY-MM-DD format (UTC)
       const todayDate = now.toISOString().split('T')[0];
 
       // Find remarks that should trigger a notification
-      // Check if follow-up time minus minutesBefore equals current time
+      // Check if follow-up time is within the notification window (±30 seconds from target time)
       const { rows: remarks } = await pool.query(`
         SELECT r.id, r.remark, r.follow_up_date, r.follow_up_time, r.client_id, c.name AS client_name
         FROM remarks r
@@ -28,6 +29,8 @@ async function checkAndSendNotifications() {
           )
         LIMIT 10
       `, [todayDate, currentTime, minutesBefore, minutesBefore]);
+
+      console.log(`[NOTIFICATION CHECK] Date: ${todayDate}, Time: ${currentTime}, Minutes Before: ${minutesBefore}, Found: ${remarks.length}`);
 
       for (const remark of remarks) {
         try {
