@@ -125,20 +125,48 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
-    let count = 0;
+    let clientCount = 0, remarkCount = 0;
+
     for (const row of rows) {
       const name = row['Name']||row['name']||row['CLIENT NAME']||row['Client Name']||'';
       if (!name) continue;
-      await pool.query(
-        'INSERT INTO clients (name,number,email,location,budget) VALUES ($1,$2,$3,$4,$5)',
-        [name, String(row['Number']||row['Phone']||row['Mobile']||''),
+
+      // Insert client
+      const { rows: clientRows } = await pool.query(
+        'INSERT INTO clients (name,number,email,location,budget) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+        [name, String(row['Phone']||row['Number']||row['Mobile']||''),
          String(row['Email']||row['email']||''),
          String(row['Location']||row['location']||''),
          String(row['Budget']||row['budget']||'')]
       );
-      count++;
+      const clientId = clientRows[0].id;
+      clientCount++;
+
+      // Parse date columns and create remarks
+      // Date columns will have format like "19/5/2026", "20/5/2026", etc.
+      const dateRegex = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+
+      for (const [key, value] of Object.entries(row)) {
+        // Check if column header is a date
+        if (dateRegex.test(key) && value && String(value).trim()) {
+          try {
+            // Parse date string (e.g., "19/5/2026" -> "2026-05-19")
+            const [day, month, year] = key.split('/');
+            const followUpDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+
+            // Insert remark with follow-up date
+            await pool.query(
+              'INSERT INTO remarks (client_id, remark, follow_up_date, follow_up_time) VALUES ($1, $2, $3, $4)',
+              [clientId, String(value).trim(), followUpDate, '09:00:00']
+            );
+            remarkCount++;
+          } catch (err) {
+            console.error(`Error processing remark for ${name} on ${key}:`, err.message);
+          }
+        }
+      }
     }
-    res.json({ imported: count });
+    res.json({ imported: clientCount, remarks: remarkCount });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 

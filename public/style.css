@@ -81,8 +81,8 @@ h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; }
 .view-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 .view-header h1 { margin-bottom: 0; flex: 1; }
 .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-#search-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: .9rem; width: 200px; outline: none; }
-#search-input:focus { border-color: var(--primary); }
+#search-input, #filter-date-from, #filter-date-to { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: .9rem; width: 160px; outline: none; }
+#search-input:focus, #filter-date-from:focus, #filter-date-to:focus { border-color: var(--primary); }
 
 /* BUTTONS */
 .btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: .9rem; font-weight: 500; transition: background .15s, opacity .15s; }

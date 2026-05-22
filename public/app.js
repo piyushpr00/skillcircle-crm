@@ -265,26 +265,54 @@ fileInput?.addEventListener('change', async () => {
   }).then(r => r.json());
   fileInput.value = '';
   if (res.error) { toast('Import failed: ' + res.error, 'error'); return; }
-  toast(`Imported ${res.imported} clients`, 'success');
-  loadClients(); loadDashboard();
+  toast(`Imported ${res.imported} clients & ${res.remarks || 0} follow-ups`, 'success');
+  loadClients(); loadDashboard(); loadUpcoming();
 });
 
 // ── Follow-ups ─────────────────────────────────────────
+let allUpcomingFollowups = [];
+
 async function loadUpcoming() {
   const rows = await apiFetch('/followups/upcoming').then(r => r.json());
+  allUpcomingFollowups = rows;
+  renderFilteredFollowups(rows);
+}
+
+function renderFilteredFollowups(rows) {
+  const dateFrom = document.getElementById('filter-date-from')?.value || '';
+  const dateTo = document.getElementById('filter-date-to')?.value || '';
+
+  let filtered = rows;
+
+  if (dateFrom || dateTo) {
+    filtered = rows.filter(r => {
+      const rDate = r.follow_up_date?.split('T')[0] || '';
+      if (dateFrom && rDate < dateFrom) return false;
+      if (dateTo && rDate > dateTo) return false;
+      return true;
+    });
+  }
+
   const list = document.getElementById('upcoming-list');
   const today = new Date().toISOString().split('T')[0];
-  list.innerHTML = rows.length === 0
-    ? '<div class="empty-state">No upcoming follow-ups.</div>'
-    : rows.map(r => `
-        <div class="followup-card ${r.follow_up_date?.split('T')[0] === today ? 'today' : ''}">
+  list.innerHTML = filtered.length === 0
+    ? '<div class="empty-state">No follow-ups found.</div>'
+    : filtered.map(r => {
+        const rDate = r.follow_up_date?.split('T')[0] || '';
+        const timeStr = r.follow_up_time ? r.follow_up_time.substring(0, 5) : '09:00';
+        return `
+        <div class="followup-card ${rDate === today ? 'today' : ''}">
           <div>
             <div class="fc-name">${esc(r.client_name)}</div>
             <div class="fc-remark">${esc(r.remark)}</div>
             <div style="font-size:.8rem;color:var(--muted);margin-top:4px">${esc(r.number)}${r.email?' · '+esc(r.email):''}</div>
           </div>
-          <div class="fc-date">${r.follow_up_date}</div>
-        </div>`).join('');
+          <div class="fc-date-time">
+            <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">${rDate}</div>
+            <div style="font-weight:600;font-size:.95rem;color:var(--primary)">${timeStr}</div>
+          </div>
+        </div>`;
+      }).join('');
 }
 
 // ── Users (admin only) ─────────────────────────────────
@@ -385,6 +413,19 @@ async function setupNotifications() {
   // Fetch and display notifications
   await fetchNotifications();
 }
+
+// ── Follow-up Filtering ────────────────────────────────
+document.getElementById('filter-date-from')?.addEventListener('change', () => {
+  renderFilteredFollowups(allUpcomingFollowups);
+});
+document.getElementById('filter-date-to')?.addEventListener('change', () => {
+  renderFilteredFollowups(allUpcomingFollowups);
+});
+document.getElementById('btn-clear-filter')?.addEventListener('click', () => {
+  document.getElementById('filter-date-from').value = '';
+  document.getElementById('filter-date-to').value = '';
+  renderFilteredFollowups(allUpcomingFollowups);
+});
 
 // ── Utility ────────────────────────────────────────────
 function esc(s) {

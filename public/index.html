@@ -61,7 +61,14 @@
 
     <!-- FOLLOW-UPS -->
     <section id="view-followups" class="view">
-      <h1>Upcoming Follow-ups</h1>
+      <div class="view-header">
+        <h1>Upcoming Follow-ups</h1>
+        <div class="header-actions">
+          <input type="date" id="filter-date-from" placeholder="From Date"/>
+          <input type="date" id="filter-date-to" placeholder="To Date"/>
+          <button class="btn btn-secondary" id="btn-clear-filter">Clear Filter</button>
+        </div>
+      </div>
       <div id="upcoming-list" class="followup-list"></div>
     </section>
 
