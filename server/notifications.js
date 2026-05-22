@@ -5,14 +5,20 @@ const NOTIFICATION_MINUTES = [5, 3]; // Send notifications 5 and 3 minutes befor
 async function checkAndSendNotifications() {
   try {
     for (const minutesBefore of NOTIFICATION_MINUTES) {
-      // Get current UTC time
+      // Get current UTC time and convert to IST (UTC+5:30)
       const now = new Date();
-      const hours = String(now.getUTCHours()).padStart(2, '0');
-      const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+
+      // Convert UTC to IST by adding 5 hours 30 minutes
+      const istTime = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+      const hours = String(istTime.getUTCHours()).padStart(2, '0');
+      const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
       const currentTime = `${hours}:${minutes}`;
 
-      // Get today's date in YYYY-MM-DD format (UTC)
-      const todayDate = now.toISOString().split('T')[0];
+      // Get today's date in IST (YYYY-MM-DD)
+      const year = istTime.getUTCFullYear();
+      const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+      const date = String(istTime.getUTCDate()).padStart(2, '0');
+      const todayDate = `${year}-${month}-${date}`;
 
       // Find remarks that should trigger a notification
       // Check if follow-up time is within the notification window (±30 seconds from target time)
@@ -30,7 +36,7 @@ async function checkAndSendNotifications() {
         LIMIT 10
       `, [todayDate, currentTime, minutesBefore, minutesBefore]);
 
-      console.log(`[NOTIFICATION CHECK] Date: ${todayDate}, Time: ${currentTime}, Minutes Before: ${minutesBefore}, Found: ${remarks.length}`);
+      console.log(`[NOTIFICATION CHECK] IST Time: ${currentTime}, Date: ${todayDate}, Minutes Before: ${minutesBefore}, Found: ${remarks.length}`);
 
       for (const remark of remarks) {
         try {

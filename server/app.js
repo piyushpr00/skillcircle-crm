@@ -181,38 +181,50 @@ app.get('/api/notifications', async (req, res) => {
 // ── Test Notification (for debugging) ───────────────
 app.post('/api/test-notification', adminOnly, async (req, res) => {
   try {
-    // Create a test follow-up for 2 minutes from now
+    // Create a test follow-up for 2 minutes from now (in IST)
     const now = new Date();
     const futureTime = new Date(now.getTime() + 2 * 60000); // 2 minutes from now
 
-    const hours = String(futureTime.getUTCHours()).padStart(2, '0');
-    const minutes = String(futureTime.getUTCMinutes()).padStart(2, '0');
+    // Convert to IST (UTC+5:30) for storing in database
+    const istTime = new Date(futureTime.getTime() + 5.5 * 60 * 60 * 1000);
+    const hours = String(istTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
     const testTime = `${hours}:${minutes}:00`;
-    const testDate = futureTime.toISOString().split('T')[0];
+
+    // Get IST date
+    const year = istTime.getUTCFullYear();
+    const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+    const date = String(istTime.getUTCDate()).padStart(2, '0');
+    const testDate = `${year}-${month}-${date}`;
+
+    // Current IST time for display
+    const currentIst = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+    const currentHours = String(currentIst.getUTCHours()).padStart(2, '0');
+    const currentMinutes = String(currentIst.getUTCMinutes()).padStart(2, '0');
+    const currentIstTime = `${currentHours}:${currentMinutes}`;
 
     // Create test client
     const { rows: clientRows } = await pool.query(
       'INSERT INTO clients (name, number, email) VALUES ($1, $2, $3) RETURNING id',
-      ['TEST_CLIENT', '9999999999', 'test@test.com']
+      ['TEST_CLIENT_' + Date.now(), '9999999999', 'test@test.com']
     );
     const clientId = clientRows[0].id;
 
     // Create test remark with follow-up in 2 minutes
     const { rows: remarkRows } = await pool.query(
       'INSERT INTO remarks (client_id, remark, follow_up_date, follow_up_time) VALUES ($1, $2, $3, $4) RETURNING id',
-      [clientId, 'TEST NOTIFICATION - This should trigger in 2 minutes', testDate, testTime]
+      [clientId, 'TEST NOTIFICATION - Check Recent Notifications panel in 2 mins', testDate, testTime]
     );
 
     res.json({
       success: true,
-      message: 'Test follow-up created',
+      message: 'Test follow-up created for IST timezone',
       clientId,
       remarkId: remarkRows[0].id,
-      testTime,
-      testDate,
-      serverTime: new Date().toISOString(),
-      serverUTCTime: `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`,
-      instruction: 'Wait 2 minutes and check the Recent Notifications panel'
+      currentIstTime: currentIstTime + ' IST',
+      testTime: testTime + ' IST',
+      testDate: testDate,
+      instruction: 'Go to Dashboard → Check "Recent Notifications" panel. Should appear in ~60-120 seconds.'
     });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
