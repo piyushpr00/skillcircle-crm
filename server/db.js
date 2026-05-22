@@ -27,8 +27,11 @@ async function init() {
       email TEXT DEFAULT '',
       location TEXT DEFAULT '',
       budget TEXT DEFAULT '',
+      assigned_to INTEGER REFERENCES users(id),
       created_at TIMESTAMP DEFAULT NOW()
     );
+
+    ALTER TABLE clients ADD COLUMN IF NOT EXISTS assigned_to INTEGER REFERENCES users(id);
 
     CREATE TABLE IF NOT EXISTS remarks (
       id SERIAL PRIMARY KEY,

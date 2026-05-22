@@ -123,7 +123,12 @@ function renderTable(clients) {
       <td>${esc(c.number)}</td>
       <td title="${esc(c.email)}">${esc(c.email)}</td>
       <td>${esc(c.location)}</td>
-      <td>${esc(c.budget)}</td>
+      <td>
+        <div class="assigned-cell">
+          ${c.assigned_user ? `<span class="badge">${esc(c.assigned_user)}</span>` : '<span style="color:var(--muted);font-size:.85rem">Unassigned</span>'}
+          ${isAdmin ? `<button class="btn btn-xs" onclick="openAssignModal(${c.id})" style="margin-left:4px">Assign</button>` : ''}
+        </div>
+      </td>
       <td><span class="badge">${c.remark_count||0}</span></td>
       <td>
         <div class="action-btns">
@@ -284,11 +289,28 @@ async function deleteClient(id) {
 
 // ── Add / Edit Client Modal ────────────────────────────
 const clientModal = document.getElementById('client-modal');
+let allUsers = [];
 
-document.getElementById('btn-add-client').addEventListener('click', () => {
+async function loadAndSetupUsers() {
+  try {
+    allUsers = await apiFetch('/auth/users').then(r => r.json());
+    const select = document.getElementById('f-assigned-to');
+    select.innerHTML = '<option value="">Unassigned</option>' +
+      allUsers.filter(u => u.role === 'executive').map(u =>
+        `<option value="${u.id}">${esc(u.username)}</option>`
+      ).join('');
+  } catch (e) {
+    console.error('Failed to load users:', e);
+  }
+}
+
+document.getElementById('btn-add-client').addEventListener('click', async () => {
   document.getElementById('modal-title').textContent = 'Add Client';
   document.getElementById('client-form').reset();
   document.getElementById('client-id').value = '';
+  document.getElementById('assign-field').style.display = isAdmin ? 'flex' : 'none';
+  document.getElementById('remark-dates').style.display = 'grid';
+  await loadAndSetupUsers();
   clientModal.classList.add('open');
 });
 
@@ -301,7 +323,16 @@ function openEdit(id) {
   document.getElementById('f-number').value = c.number;
   document.getElementById('f-email').value = c.email;
   document.getElementById('f-location').value = c.location;
-  document.getElementById('f-budget').value = c.budget;
+  document.getElementById('f-initial-remark').value = '';
+  document.getElementById('f-followup-date').value = '';
+  document.getElementById('f-followup-time').value = '09:00';
+  document.getElementById('assign-field').style.display = isAdmin ? 'flex' : 'none';
+  document.getElementById('remark-dates').style.display = 'none';
+
+  if (isAdmin) {
+    document.getElementById('f-assigned-to').value = c.assigned_to || '';
+  }
+
   clientModal.classList.add('open');
 }
 
@@ -318,8 +349,23 @@ document.getElementById('client-form').addEventListener('submit', async e => {
     number: document.getElementById('f-number').value.trim(),
     email: document.getElementById('f-email').value.trim(),
     location: document.getElementById('f-location').value.trim(),
-    budget: document.getElementById('f-budget').value.trim(),
   };
+
+  if (isAdmin) {
+    const assignTo = document.getElementById('f-assigned-to').value;
+    body.assigned_to = assignTo ? parseInt(assignTo) : null;
+  }
+
+  // Add remarks for new clients only
+  if (!id) {
+    const remark = document.getElementById('f-initial-remark').value.trim();
+    if (remark) {
+      body.initial_remark = remark;
+      body.follow_up_date = document.getElementById('f-followup-date').value || null;
+      body.follow_up_time = document.getElementById('f-followup-time').value || '09:00';
+    }
+  }
+
   if (id) {
     await apiFetch(`/clients/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     toast('Client updated', 'success');
@@ -330,6 +376,55 @@ document.getElementById('client-form').addEventListener('submit', async e => {
   closeClientModal();
   loadClients();
   loadDashboard();
+});
+
+// ── Assign Client Modal ────────────────────────────────
+const assignModal = document.getElementById('assign-modal');
+
+async function openAssignModal(clientId) {
+  document.getElementById('assign-client-id').value = clientId;
+
+  // Load executives for the select
+  const executives = allUsers.filter(u => u.role === 'executive');
+  const select = document.getElementById('assign-user-select');
+  select.innerHTML = '<option value="">Select an executive...</option>' +
+    executives.map(u => `<option value="${u.id}">${esc(u.username)}</option>`).join('');
+
+  assignModal.classList.add('open');
+}
+
+const closeAssignModal = () => assignModal.classList.remove('open');
+document.getElementById('close-assign-modal')?.addEventListener('click', closeAssignModal);
+document.getElementById('cancel-assign')?.addEventListener('click', closeAssignModal);
+assignModal?.addEventListener('click', e => { if (e.target === assignModal) closeAssignModal(); });
+
+document.getElementById('assign-form')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  const clientId = document.getElementById('assign-client-id').value;
+  const assignedTo = document.getElementById('assign-user-select').value;
+
+  if (!assignedTo) {
+    toast('Please select an executive', 'error');
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`/clients/${clientId}/assign`, {
+      method: 'PATCH',
+      body: JSON.stringify({ assigned_to: parseInt(assignedTo) })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      toast('Failed to assign client', 'error');
+      return;
+    }
+    toast('Client assigned', 'success');
+    closeAssignModal();
+    loadClients();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+    console.error('Assign error:', e);
+  }
 });
 
 // ── Detail / Remarks Modal ─────────────────────────────
@@ -343,7 +438,7 @@ async function openDetail(id) {
     <span class="di-label">Phone</span><span>${esc(data.number)}</span>
     <span class="di-label">Email</span><span>${esc(data.email)}</span>
     <span class="di-label">Location</span><span>${esc(data.location)}</span>
-    <span class="di-label">Budget</span><span>${esc(data.budget)}</span>
+    <span class="di-label">Assigned To</span><span>${data.assigned_user ? esc(data.assigned_user) : 'Unassigned'}</span>
     <span class="di-label">Added</span><span>${new Date(data.created_at).toLocaleDateString()}</span>
   `;
   renderRemarks(data.remarks);

@@ -25,9 +25,11 @@ app.use('/api', auth);
 app.get('/api/clients', async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT c.*, COUNT(r.id)::int AS remark_count
-      FROM clients c LEFT JOIN remarks r ON r.client_id = c.id
-      GROUP BY c.id ORDER BY c.created_at DESC
+      SELECT c.*, COUNT(r.id)::int AS remark_count, u.username as assigned_user
+      FROM clients c
+      LEFT JOIN remarks r ON r.client_id = c.id
+      LEFT JOIN users u ON c.assigned_to = u.id
+      GROUP BY c.id, u.username ORDER BY c.created_at DESC
     `);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -35,7 +37,10 @@ app.get('/api/clients', async (req, res) => {
 
 app.get('/api/clients/:id', async (req, res) => {
   try {
-    const { rows: c } = await pool.query('SELECT * FROM clients WHERE id=$1', [req.params.id]);
+    const { rows: c } = await pool.query(
+      'SELECT c.*, u.username as assigned_user FROM clients c LEFT JOIN users u ON c.assigned_to = u.id WHERE c.id=$1',
+      [req.params.id]
+    );
     if (!c[0]) return res.status(404).json({ error: 'Not found' });
     const { rows: remarks } = await pool.query(
       'SELECT * FROM remarks WHERE client_id=$1 ORDER BY follow_up_date ASC NULLS LAST, created_at DESC',
@@ -47,22 +52,47 @@ app.get('/api/clients/:id', async (req, res) => {
 
 app.post('/api/clients', async (req, res) => {
   try {
-    const { name, number, email, location, budget } = req.body;
+    const { name, number, email, location, assigned_to, initial_remark, follow_up_date, follow_up_time } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     const { rows } = await pool.query(
-      'INSERT INTO clients (name,number,email,location,budget) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-      [name, number||'', email||'', location||'', budget||'']
+      'INSERT INTO clients (name,number,email,location,assigned_to) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+      [name, number||'', email||'', location||'', assigned_to||null]
     );
-    res.json({ id: rows[0].id });
+    const clientId = rows[0].id;
+
+    // Add initial remark if provided
+    if (initial_remark && initial_remark.trim()) {
+      await pool.query(
+        'INSERT INTO remarks (client_id,remark,follow_up_date,follow_up_time) VALUES ($1,$2,$3,$4)',
+        [clientId, initial_remark, follow_up_date||null, follow_up_time||'09:00:00']
+      );
+    }
+
+    res.json({ id: clientId });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/clients/:id', async (req, res) => {
   try {
-    const { name, number, email, location, budget } = req.body;
+    const { name, number, email, location, assigned_to } = req.body;
     await pool.query(
-      'UPDATE clients SET name=$1,number=$2,email=$3,location=$4,budget=$5 WHERE id=$6',
-      [name, number, email, location, budget, req.params.id]
+      'UPDATE clients SET name=$1,number=$2,email=$3,location=$4,assigned_to=$5 WHERE id=$6',
+      [name, number, email, location, assigned_to||null, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Assign client to executive ─────────────────────────
+app.patch('/api/clients/:id/assign', adminOnly, async (req, res) => {
+  try {
+    const { assigned_to } = req.body;
+    if (!assigned_to) {
+      return res.status(400).json({ error: 'assigned_to is required' });
+    }
+    await pool.query(
+      'UPDATE clients SET assigned_to=$1 WHERE id=$2',
+      [assigned_to, req.params.id]
     );
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
