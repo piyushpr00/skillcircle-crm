@@ -89,6 +89,7 @@ async function loadDashboard() {
             <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">TODAY</div>
             <div style="font-weight:600;font-size:.95rem;color:var(--primary)">${r.follow_up_time ? r.follow_up_time.substring(0,5) : '09:00'}</div>
           </div>
+          <button class="btn btn-sm btn-danger" onclick="deleteFollowup(${r.id}, 'loadDashboard')">Delete</button>
         </div>`).join('');
 }
 
@@ -311,6 +312,7 @@ function renderFilteredFollowups(rows) {
             <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">${rDate}</div>
             <div style="font-weight:600;font-size:.95rem;color:var(--primary)">${timeStr}</div>
           </div>
+          <button class="btn btn-sm btn-danger" onclick="deleteFollowup(${r.id}, 'loadUpcoming')">Delete</button>
         </div>`;
       }).join('');
 }
@@ -335,6 +337,15 @@ async function deleteUser(id) {
   await apiFetch(`/auth/users/${id}`, { method: 'DELETE' });
   toast('Member removed', 'error');
   loadUsers();
+}
+
+async function deleteFollowup(id, refreshFunc) {
+  if (!confirm('Delete this follow-up?')) return;
+  const res = await apiFetch(`/api/remarks/${id}`, { method: 'DELETE' });
+  if (!res.ok) { toast('Failed to delete follow-up', 'error'); return; }
+  toast('Follow-up deleted', 'error');
+  if (refreshFunc === 'loadDashboard') loadDashboard();
+  if (refreshFunc === 'loadUpcoming') loadUpcoming();
 }
 
 const userModal = document.getElementById('user-modal');
