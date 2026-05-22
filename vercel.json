@@ -1,15 +1,12 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/index.js", "use": "@vercel/node" },
-    { "src": "public/**/*", "use": "@vercel/static" }
+    { "src": "server/index.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api(.*)", "dest": "/api/index.js" },
-    { "src": "/login.html", "dest": "/login.html" },
-    { "src": "/index.html", "dest": "/index.html" },
-    { "src": "/app.js", "dest": "/app.js" },
-    { "src": "/style.css", "dest": "/style.css" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+    { "src": "/(.*)", "dest": "server/index.js" }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
