@@ -79,8 +79,8 @@ async function loadDashboard() {
   const list = document.getElementById('today-list');
   list.innerHTML = today.length === 0
     ? '<div class="empty-state">No follow-ups scheduled for today.</div>'
-    : today.map(r => `
-        <div class="followup-card today" data-remark-id="${r.id}">
+    : today.map((r, idx) => `
+        <div class="followup-card today" data-remark-id="${r.id || idx}">
           <div style="flex:1">
             <div class="fc-name">${esc(r.client_name)}</div>
             <div class="fc-remark">${esc(r.remark)}</div>
