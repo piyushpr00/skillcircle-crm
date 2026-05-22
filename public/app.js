@@ -98,20 +98,27 @@ async function loadDashboard() {
 }
 
 // ── Clients ────────────────────────────────────────────
+let selectedClients = new Set();
+
 async function loadClients() {
   const clients = await apiFetch('/clients').then(r => r.json());
   allClients = clients;
+  selectedClients.clear();
   renderTable(clients);
+  updateClientBulkToolbar();
 }
 
 function renderTable(clients) {
   const tbody = document.getElementById('client-tbody');
   if (!clients.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No clients yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No clients yet.</td></tr>';
     return;
   }
-  tbody.innerHTML = clients.map(c => `
-    <tr>
+  tbody.innerHTML = clients.map(c => {
+    const isSelected = selectedClients.has(c.id);
+    return `
+    <tr class="client-row ${isSelected ? 'selected' : ''}" data-client-id="${c.id}">
+      <td><input type="checkbox" class="client-checkbox" data-id="${c.id}" ${isSelected ? 'checked' : ''}/></td>
       <td title="${esc(c.name)}">${esc(c.name)}</td>
       <td>${esc(c.number)}</td>
       <td title="${esc(c.email)}">${esc(c.email)}</td>
@@ -125,7 +132,90 @@ function renderTable(clients) {
           ${isAdmin ? `<button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id})">Del</button>` : ''}
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+
+  // Attach checkbox event listeners
+  document.querySelectorAll('.client-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', handleClientCheckboxChange);
+  });
+}
+
+function handleClientCheckboxChange(e) {
+  const id = parseInt(e.target.dataset.id);
+  const row = document.querySelector(`[data-client-id="${id}"]`);
+
+  if (e.target.checked) {
+    selectedClients.add(id);
+    row.classList.add('selected');
+  } else {
+    selectedClients.delete(id);
+    row.classList.remove('selected');
+  }
+
+  updateClientBulkToolbar();
+}
+
+function updateClientBulkToolbar() {
+  const toolbar = document.getElementById('bulk-delete-toolbar-clients');
+  const countEl = document.getElementById('selection-count-clients');
+  const selectAllCheckbox = document.getElementById('select-all-clients');
+  const tableSelectAllCheckbox = document.getElementById('select-all-clients-table');
+  const tbody = document.getElementById('client-tbody');
+  const allCheckboxes = tbody.querySelectorAll('.client-checkbox');
+
+  const count = selectedClients.size;
+  countEl.textContent = `${count} selected`;
+
+  // Show/hide toolbar
+  toolbar.style.display = count > 0 ? 'flex' : 'none';
+
+  // Update select all checkbox state
+  const allChecked = allCheckboxes.length > 0 && selectedClients.size === allCheckboxes.length;
+  selectAllCheckbox.checked = allChecked;
+  tableSelectAllCheckbox.checked = allChecked;
+}
+
+async function deleteSelectedClients() {
+  if (selectedClients.size === 0) {
+    toast('No clients selected', 'error');
+    return;
+  }
+
+  if (!confirm(`Delete ${selectedClients.size} client(s) and all their remarks?`)) return;
+
+  try {
+    const ids = Array.from(selectedClients);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const id of ids) {
+      try {
+        const res = await apiFetch(`/clients/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (e) {
+        errorCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast(`Deleted ${successCount} client(s)`, 'success');
+    }
+    if (errorCount > 0) {
+      toast(`Failed to delete ${errorCount} client(s)`, 'error');
+    }
+
+    selectedClients.clear();
+    loadClients();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+    console.error('Bulk delete error:', e);
+  }
 }
 
 document.getElementById('search-input').addEventListener('input', e => {
@@ -134,6 +224,55 @@ document.getElementById('search-input').addEventListener('input', e => {
     [c.name, c.number, c.email, c.location, c.budget].some(v => (v||'').toLowerCase().includes(q))
   ));
 });
+
+// ── Bulk Delete Listeners (Clients) ────────────────────
+document.getElementById('select-all-clients')?.addEventListener('change', (e) => {
+  const tbody = document.getElementById('client-tbody');
+  const allCheckboxes = tbody.querySelectorAll('.client-checkbox');
+
+  if (e.target.checked) {
+    allCheckboxes.forEach(checkbox => {
+      checkbox.checked = true;
+      selectedClients.add(parseInt(checkbox.dataset.id));
+      const row = document.querySelector(`[data-client-id="${checkbox.dataset.id}"]`);
+      row?.classList.add('selected');
+    });
+  } else {
+    allCheckboxes.forEach(checkbox => {
+      checkbox.checked = false;
+      selectedClients.delete(parseInt(checkbox.dataset.id));
+      const row = document.querySelector(`[data-client-id="${checkbox.dataset.id}"]`);
+      row?.classList.remove('selected');
+    });
+  }
+
+  updateClientBulkToolbar();
+});
+
+document.getElementById('select-all-clients-table')?.addEventListener('change', (e) => {
+  const tbody = document.getElementById('client-tbody');
+  const allCheckboxes = tbody.querySelectorAll('.client-checkbox');
+
+  if (e.target.checked) {
+    allCheckboxes.forEach(checkbox => {
+      checkbox.checked = true;
+      selectedClients.add(parseInt(checkbox.dataset.id));
+      const row = document.querySelector(`[data-client-id="${checkbox.dataset.id}"]`);
+      row?.classList.add('selected');
+    });
+  } else {
+    allCheckboxes.forEach(checkbox => {
+      checkbox.checked = false;
+      selectedClients.delete(parseInt(checkbox.dataset.id));
+      const row = document.querySelector(`[data-client-id="${checkbox.dataset.id}"]`);
+      row?.classList.remove('selected');
+    });
+  }
+
+  updateClientBulkToolbar();
+});
+
+document.getElementById('btn-delete-selected-clients')?.addEventListener('click', deleteSelectedClients);
 
 async function deleteClient(id) {
   if (!confirm('Delete this client and all their remarks?')) return;

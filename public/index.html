@@ -46,11 +46,19 @@
           <button class="btn btn-primary" id="btn-add-client">+ Add Client</button>
         </div>
       </div>
+      <div id="bulk-delete-toolbar-clients" class="bulk-delete-toolbar" style="display:none">
+        <div class="toolbar-content">
+          <input type="checkbox" id="select-all-clients" title="Select all"/>
+          <span id="selection-count-clients">0 selected</span>
+          <button class="btn btn-danger" id="btn-delete-selected-clients">Delete Selected</button>
+        </div>
+      </div>
       <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none"/>
       <div id="client-table-wrap">
         <table class="table" id="client-table">
           <thead>
             <tr>
+              <th style="width:40px"><input type="checkbox" id="select-all-clients-table" title="Select all"/></th>
               <th>Name</th><th>Phone</th><th>Email</th><th>Location</th><th>Budget</th><th>Remarks</th><th>Actions</th>
             </tr>
           </thead>

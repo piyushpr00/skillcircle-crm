@@ -101,6 +101,13 @@ h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; }
 .table td { padding: 12px 14px; border-bottom: 1px solid var(--border); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .table tr:last-child td { border-bottom: none; }
 .table tr:hover td { background: #f8fafc; }
+.table tr.selected td { background: #dbeafe !important; }
+.table input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
 .action-btns { display: flex; gap: 6px; }
 
 /* ROLE CHIPS */
