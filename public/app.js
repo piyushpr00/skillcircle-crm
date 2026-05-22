@@ -79,7 +79,7 @@ async function loadDashboard() {
   list.innerHTML = today.length === 0
     ? '<div class="empty-state">No follow-ups scheduled for today.</div>'
     : today.map(r => `
-        <div class="followup-card today">
+        <div class="followup-card today" data-remark-id="${r.id}">
           <div style="flex:1">
             <div class="fc-name">${esc(r.client_name)}</div>
             <div class="fc-remark">${esc(r.remark)}</div>
@@ -89,8 +89,18 @@ async function loadDashboard() {
             <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">TODAY</div>
             <div style="font-weight:600;font-size:.95rem;color:var(--primary)">${r.follow_up_time ? r.follow_up_time.substring(0,5) : '09:00'}</div>
           </div>
-          <button class="btn btn-sm btn-danger" onclick="deleteFollowup(${r.id}, 'loadDashboard')">Delete</button>
+          <button class="btn btn-sm btn-danger btn-delete-followup" data-action="loadDashboard">Delete</button>
         </div>`).join('');
+
+  // Add event listeners to delete buttons
+  list.querySelectorAll('.btn-delete-followup').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const card = this.closest('.followup-card');
+      const id = card.dataset.remarkId;
+      const action = this.dataset.action;
+      deleteFollowup(id, action);
+    });
+  });
 }
 
 // ── Clients ────────────────────────────────────────────
@@ -302,7 +312,7 @@ function renderFilteredFollowups(rows) {
         const rDate = r.follow_up_date?.split('T')[0] || '';
         const timeStr = r.follow_up_time ? r.follow_up_time.substring(0, 5) : '09:00';
         return `
-        <div class="followup-card ${rDate === today ? 'today' : ''}">
+        <div class="followup-card ${rDate === today ? 'today' : ''}" data-remark-id="${r.id}">
           <div>
             <div class="fc-name">${esc(r.client_name)}</div>
             <div class="fc-remark">${esc(r.remark)}</div>
@@ -312,9 +322,19 @@ function renderFilteredFollowups(rows) {
             <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">${rDate}</div>
             <div style="font-weight:600;font-size:.95rem;color:var(--primary)">${timeStr}</div>
           </div>
-          <button class="btn btn-sm btn-danger" onclick="deleteFollowup(${r.id}, 'loadUpcoming')">Delete</button>
+          <button class="btn btn-sm btn-danger btn-delete-followup" data-action="loadUpcoming">Delete</button>
         </div>`;
       }).join('');
+
+  // Add event listeners to delete buttons
+  list.querySelectorAll('.btn-delete-followup').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const card = this.closest('.followup-card');
+      const id = card.dataset.remarkId;
+      const action = this.dataset.action;
+      deleteFollowup(id, action);
+    });
+  });
 }
 
 // ── Users (admin only) ─────────────────────────────────
