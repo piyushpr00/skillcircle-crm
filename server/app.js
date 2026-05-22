@@ -151,52 +151,109 @@ app.get('/api/followups/upcoming', async (req, res) => {
 });
 
 // ── Upload ─────────────────────────────────────────────
+// Validation helpers
+function validateEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function validatePhone(phone) {
+  const phoneRegex = /^\d+$/;
+  return phoneRegex.test(phone);
+}
+
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
     let clientCount = 0, remarkCount = 0;
+    let errors = [];
 
-    for (const row of rows) {
-      const name = row['Name']||row['name']||row['CLIENT NAME']||row['Client Name']||'';
-      if (!name) continue;
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
+      const rowNum = rowIndex + 2; // Row number in Excel (1-indexed + header)
 
-      // Insert client
-      const { rows: clientRows } = await pool.query(
-        'INSERT INTO clients (name,number,email,location,budget) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-        [name, String(row['Phone']||row['Number']||row['Mobile']||''),
-         String(row['Email']||row['email']||''),
-         String(row['Location']||row['location']||''),
-         String(row['Budget']||row['budget']||'')]
-      );
-      const clientId = clientRows[0].id;
-      clientCount++;
+      // Get field values with multiple possible column names
+      const name = String(row['Name']||row['name']||row['CLIENT NAME']||row['Client Name']||'').trim();
+      const phone = String(row['Phone']||row['Number']||row['Mobile']||'').trim();
+      const email = String(row['Email']||row['email']||'').trim();
+      const location = String(row['Location']||row['location']||'').trim();
 
-      // Parse date columns and create remarks
-      // Date columns will have format like "19/5/2026", "20/5/2026", etc.
-      const dateRegex = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+      // Validate all required fields
+      if (!name) {
+        errors.push(`Row ${rowNum}: Name is required`);
+        continue;
+      }
+      if (!phone) {
+        errors.push(`Row ${rowNum}: Phone is required`);
+        continue;
+      }
+      if (!email) {
+        errors.push(`Row ${rowNum}: Email is required`);
+        continue;
+      }
+      if (!location) {
+        errors.push(`Row ${rowNum}: Location is required`);
+        continue;
+      }
 
-      for (const [key, value] of Object.entries(row)) {
-        // Check if column header is a date
-        if (dateRegex.test(key) && value && String(value).trim()) {
-          try {
-            // Parse date string (e.g., "19/5/2026" -> "2026-05-19")
-            const [day, month, year] = key.split('/');
-            const followUpDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      // Validate phone format (numbers only)
+      if (!validatePhone(phone)) {
+        errors.push(`Row ${rowNum}: Phone must contain only numbers (${phone})`);
+        continue;
+      }
 
-            // Insert remark with follow-up date
-            await pool.query(
-              'INSERT INTO remarks (client_id, remark, follow_up_date, follow_up_time) VALUES ($1, $2, $3, $4)',
-              [clientId, String(value).trim(), followUpDate, '09:00:00']
-            );
-            remarkCount++;
-          } catch (err) {
-            console.error(`Error processing remark for ${name} on ${key}:`, err.message);
+      // Validate email format
+      if (!validateEmail(email)) {
+        errors.push(`Row ${rowNum}: Email format is invalid (${email})`);
+        continue;
+      }
+
+      try {
+        // Insert client
+        const { rows: clientRows } = await pool.query(
+          'INSERT INTO clients (name,number,email,location) VALUES ($1,$2,$3,$4) RETURNING id',
+          [name, phone, email, location]
+        );
+        const clientId = clientRows[0].id;
+        clientCount++;
+
+        // Parse date columns and create remarks
+        // Date columns will have format like "19/5/2026", "20/5/2026", etc.
+        const dateRegex = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+
+        for (const [key, value] of Object.entries(row)) {
+          // Check if column header is a date
+          if (dateRegex.test(key) && value && String(value).trim()) {
+            try {
+              // Parse date string (e.g., "19/5/2026" -> "2026-05-19")
+              const [day, month, year] = key.split('/');
+              const followUpDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+
+              // Insert remark with follow-up date
+              await pool.query(
+                'INSERT INTO remarks (client_id, remark, follow_up_date, follow_up_time) VALUES ($1, $2, $3, $4)',
+                [clientId, String(value).trim(), followUpDate, '09:00:00']
+              );
+              remarkCount++;
+            } catch (err) {
+              console.error(`Error processing remark for ${name} on ${key}:`, err.message);
+            }
           }
         }
+      } catch (err) {
+        errors.push(`Row ${rowNum}: Database error - ${err.message}`);
       }
     }
-    res.json({ imported: clientCount, remarks: remarkCount });
+
+    // Return results with any errors
+    res.json({
+      imported: clientCount,
+      remarks: remarkCount,
+      errors: errors,
+      success: clientCount > 0,
+      errorCount: errors.length
+    });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 

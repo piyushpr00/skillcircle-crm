@@ -341,14 +341,54 @@ document.getElementById('close-client-modal').addEventListener('click', closeCli
 document.getElementById('cancel-client').addEventListener('click', closeClientModal);
 clientModal.addEventListener('click', e => { if (e.target === clientModal) closeClientModal(); });
 
+// ── Form Validation Helpers ───────────────────────────
+function validatePhoneFormat(phone) {
+  return /^\d+$/.test(phone);
+}
+
+function validateEmailFormat(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 document.getElementById('client-form').addEventListener('submit', async e => {
   e.preventDefault();
   const id = document.getElementById('client-id').value;
+  const name = document.getElementById('f-name').value.trim();
+  const number = document.getElementById('f-number').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const location = document.getElementById('f-location').value.trim();
+
+  // Validation
+  if (!name) {
+    toast('Name is required', 'error');
+    return;
+  }
+  if (!number) {
+    toast('Phone number is required', 'error');
+    return;
+  }
+  if (!validatePhoneFormat(number)) {
+    toast('Phone number must contain only digits', 'error');
+    return;
+  }
+  if (!email) {
+    toast('Email is required', 'error');
+    return;
+  }
+  if (!validateEmailFormat(email)) {
+    toast('Email format is invalid (e.g., user@example.com)', 'error');
+    return;
+  }
+  if (!location) {
+    toast('Location is required', 'error');
+    return;
+  }
+
   const body = {
-    name: document.getElementById('f-name').value.trim(),
-    number: document.getElementById('f-number').value.trim(),
-    email: document.getElementById('f-email').value.trim(),
-    location: document.getElementById('f-location').value.trim(),
+    name,
+    number,
+    email,
+    location,
   };
 
   if (isAdmin) {
@@ -503,9 +543,30 @@ fileInput?.addEventListener('change', async () => {
     method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: fd
   }).then(r => r.json());
   fileInput.value = '';
-  if (res.error) { toast('Import failed: ' + res.error, 'error'); return; }
-  toast(`Imported ${res.imported} clients & ${res.remarks || 0} follow-ups`, 'success');
-  loadClients(); loadDashboard(); loadUpcoming();
+
+  if (res.error) {
+    toast('Import failed: ' + res.error, 'error');
+    return;
+  }
+
+  // Show detailed results
+  if (res.imported > 0) {
+    toast(`✓ Imported ${res.imported} client(s) & ${res.remarks || 0} follow-up(s)`, 'success');
+  }
+
+  // Show validation errors if any
+  if (res.errors && res.errors.length > 0) {
+    const errorMsg = res.errors.slice(0, 5).join('\n');
+    const moreText = res.errors.length > 5 ? `\n... and ${res.errors.length - 5} more errors` : '';
+    toast(`⚠ ${res.errorCount} row(s) failed validation:\n${errorMsg}${moreText}`, 'error');
+    console.error('Upload validation errors:', res.errors);
+  }
+
+  if (res.imported > 0) {
+    loadClients();
+    loadDashboard();
+    loadUpcoming();
+  }
 });
 
 // ── Follow-ups ─────────────────────────────────────────

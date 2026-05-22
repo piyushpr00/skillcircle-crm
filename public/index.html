@@ -112,10 +112,10 @@
       <form id="client-form">
         <input type="hidden" id="client-id"/>
         <div class="form-grid">
-          <div class="field"><label>Name *</label><input type="text" id="f-name" required/></div>
-          <div class="field"><label>Phone</label><input type="text" id="f-number"/></div>
-          <div class="field"><label>Email</label><input type="email" id="f-email"/></div>
-          <div class="field"><label>Location</label><input type="text" id="f-location"/></div>
+          <div class="field"><label>Name *</label><input type="text" id="f-name" placeholder="Client name" required/></div>
+          <div class="field"><label>Phone * (Numbers only)</label><input type="tel" id="f-number" placeholder="10-digit number" pattern="[0-9]+" inputmode="numeric" required/></div>
+          <div class="field"><label>Email *</label><input type="email" id="f-email" placeholder="user@example.com" required/></div>
+          <div class="field"><label>Location *</label><input type="text" id="f-location" placeholder="City/Region" required/></div>
           <div class="field full" id="assign-field" style="display:none"><label>Assign To</label><select id="f-assigned-to"><option value="">Unassigned</option></select></div>
         </div>
         <div class="form-grid">
