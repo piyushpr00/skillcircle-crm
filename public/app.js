@@ -821,6 +821,13 @@ document.getElementById('user-form')?.addEventListener('submit', async e => {
   loadUsers();
 });
 
+// ── 5-Minute Reminder Pop-up ───────────────────────────
+const reminderPopup = document.getElementById('reminder-popup');
+document.getElementById('close-reminder')?.addEventListener('click', closeReminderPopup);
+document.getElementById('snooze-reminder')?.addEventListener('click', snoozeReminder);
+document.getElementById('view-client-reminder')?.addEventListener('click', viewClientFromReminder);
+reminderPopup?.addEventListener('click', e => { if (e.target === reminderPopup) closeReminderPopup(); });
+
 // ── Notifications System ──────────────────────────────
 async function fetchNotifications() {
   try {
@@ -855,6 +862,55 @@ function playNotificationSound() {
   } catch (e) {
     console.log('Audio context not available');
   }
+}
+
+// 5-Minute Reminder Pop-up System
+function showReminderPopup(clientName, followupTime, remark, remarkId) {
+  const overlay = document.getElementById('reminder-popup');
+  if (!overlay) return;
+
+  // Update popup content
+  document.getElementById('reminder-client').textContent = clientName;
+  document.getElementById('reminder-time').textContent = followupTime;
+  document.getElementById('reminder-remark').textContent = remark || '(No remark)';
+
+  // Show popup with animation
+  overlay.classList.add('open');
+
+  // Store current reminder ID for snooze functionality
+  sessionStorage.setItem('current_reminder_id', remarkId);
+
+  // Auto-dismiss after 30 seconds if not interacted
+  const autoDismissTimeout = setTimeout(() => {
+    if (overlay.classList.contains('open')) {
+      closeReminderPopup();
+    }
+  }, 30000);
+
+  sessionStorage.setItem(`reminder_timeout_${remarkId}`, autoDismissTimeout.toString());
+}
+
+function closeReminderPopup() {
+  const overlay = document.getElementById('reminder-popup');
+  if (overlay) {
+    overlay.classList.remove('open');
+  }
+}
+
+function snoozeReminder() {
+  const remarkId = sessionStorage.getItem('current_reminder_id');
+  if (remarkId) {
+    // Mark as snoozed so it won't show again for 5 minutes
+    sessionStorage.setItem(`reminder_snoozed_${remarkId}`, (Date.now() + 5 * 60 * 1000).toString());
+    closeReminderPopup();
+    toast('Reminder snoozed for 5 minutes', 'success');
+  }
+}
+
+function viewClientFromReminder() {
+  closeReminderPopup();
+  // Navigate to Clients view
+  switchView('clients');
 }
 
 // Update page title and badge with follow-up count
@@ -901,6 +957,31 @@ function updateNotificationUI(notifs) {
   // Update page title and badge with notification count
   const upcomingCount = notifs.filter(n => n.minutes_before >= 3).length;
   updatePageBadge(upcomingCount);
+
+  // Show 5-minute reminder pop-up
+  const fiveMinNotifs = notifs.filter(n => n.minutes_before === 5);
+  if (fiveMinNotifs.length > 0) {
+    const notif = fiveMinNotifs[0];
+    const reminderKey = `reminder_shown_${notif.remark_id}`;
+    const snoozedUntil = sessionStorage.getItem(`reminder_snoozed_${notif.remark_id}`);
+    const now = Date.now();
+
+    // Check if reminder should be shown
+    if (!sessionStorage.getItem(reminderKey) && (!snoozedUntil || parseInt(snoozedUntil) < now)) {
+      // Extract time from message or use follow-up time
+      const timeMatch = notif.message.match(/(\d{1,2}:\d{2})/);
+      const followupTime = timeMatch ? timeMatch[1] : 'Soon';
+
+      showReminderPopup(
+        notif.client_name,
+        followupTime,
+        notif.message,
+        notif.remark_id
+      );
+
+      sessionStorage.setItem(reminderKey, 'true');
+    }
+  }
 
   // Also send browser notifications for critical ones (3 min before)
   const criticalNotifs = notifs.filter(n => n.minutes_before === 3);

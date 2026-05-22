@@ -218,6 +218,38 @@
     </div>
   </div>
 
+  <!-- 5-MINUTE REMINDER POP-UP -->
+  <div class="modal-overlay" id="reminder-popup">
+    <div class="modal reminder-modal">
+      <div class="reminder-header">
+        <div class="reminder-icon">⏰</div>
+        <h2>Upcoming Follow-up!</h2>
+        <button class="close-btn" id="close-reminder">&times;</button>
+      </div>
+      <div class="reminder-content">
+        <div class="reminder-time">5 minutes remaining</div>
+        <div class="reminder-details">
+          <div class="reminder-row">
+            <span class="reminder-label">Client:</span>
+            <span class="reminder-value" id="reminder-client">--</span>
+          </div>
+          <div class="reminder-row">
+            <span class="reminder-label">Time:</span>
+            <span class="reminder-value" id="reminder-time">--</span>
+          </div>
+          <div class="reminder-row">
+            <span class="reminder-label">Remark:</span>
+            <span class="reminder-value" id="reminder-remark">--</span>
+          </div>
+        </div>
+      </div>
+      <div class="reminder-actions">
+        <button class="btn btn-secondary" id="snooze-reminder">Snooze 5 min</button>
+        <button class="btn btn-primary" id="view-client-reminder">View Client</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
