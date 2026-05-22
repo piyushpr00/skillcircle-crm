@@ -864,15 +864,41 @@ function playNotificationSound() {
   }
 }
 
-// 5-Minute Reminder Pop-up System
-function showReminderPopup(clientName, followupTime, remark, remarkId) {
+// Multi-level Reminder Pop-up System (15, 10, 5, 3 minutes)
+function showReminderPopup(clientName, followupTime, remark, remarkId, minutesBefore) {
   const overlay = document.getElementById('reminder-popup');
-  if (!overlay) return;
+  const modalContent = document.getElementById('reminder-modal-content');
+  if (!overlay || !modalContent) return;
 
   // Update popup content
   document.getElementById('reminder-client').textContent = clientName;
   document.getElementById('reminder-time').textContent = followupTime;
   document.getElementById('reminder-remark').textContent = remark || '(No remark)';
+  document.getElementById('reminder-time-display').textContent = minutesBefore + ' minutes remaining';
+
+  // Update styling based on timing
+  modalContent.className = 'modal reminder-modal';
+  let urgencyMsg = '';
+
+  if (minutesBefore >= 15) {
+    modalContent.classList.add('reminder-15min');
+    document.getElementById('reminder-title').textContent = 'Upcoming Follow-up';
+    urgencyMsg = 'You have some time to prepare';
+  } else if (minutesBefore >= 10) {
+    modalContent.classList.add('reminder-10min');
+    document.getElementById('reminder-title').textContent = 'Follow-up Coming Soon';
+    urgencyMsg = 'Start wrapping up current tasks';
+  } else if (minutesBefore >= 5) {
+    modalContent.classList.add('reminder-5min');
+    document.getElementById('reminder-title').textContent = 'Follow-up Soon!';
+    urgencyMsg = 'Get ready, it\'s coming very soon';
+  } else {
+    modalContent.classList.add('reminder-3min');
+    document.getElementById('reminder-title').textContent = '⚠️ URGENT: Follow-up Now!';
+    urgencyMsg = 'IMMEDIATE ACTION REQUIRED - Follow-up is about to start!';
+  }
+
+  document.getElementById('reminder-urgency-msg').textContent = urgencyMsg;
 
   // Show popup with animation
   overlay.classList.add('open');
@@ -880,12 +906,19 @@ function showReminderPopup(clientName, followupTime, remark, remarkId) {
   // Store current reminder ID for snooze functionality
   sessionStorage.setItem('current_reminder_id', remarkId);
 
-  // Auto-dismiss after 30 seconds if not interacted
+  // Auto-dismiss after different times based on urgency
+  let autoDismissTime = 30000; // Default 30 seconds
+  if (minutesBefore <= 3) {
+    autoDismissTime = 60000; // 60 seconds for critical
+  } else if (minutesBefore <= 5) {
+    autoDismissTime = 45000; // 45 seconds for urgent
+  }
+
   const autoDismissTimeout = setTimeout(() => {
     if (overlay.classList.contains('open')) {
       closeReminderPopup();
     }
-  }, 30000);
+  }, autoDismissTime);
 
   sessionStorage.setItem(`reminder_timeout_${remarkId}`, autoDismissTimeout.toString());
 }
@@ -958,30 +991,34 @@ function updateNotificationUI(notifs) {
   const upcomingCount = notifs.filter(n => n.minutes_before >= 3).length;
   updatePageBadge(upcomingCount);
 
-  // Show 5-minute reminder pop-up
-  const fiveMinNotifs = notifs.filter(n => n.minutes_before === 5);
-  if (fiveMinNotifs.length > 0) {
-    const notif = fiveMinNotifs[0];
-    const reminderKey = `reminder_shown_${notif.remark_id}`;
-    const snoozedUntil = sessionStorage.getItem(`reminder_snoozed_${notif.remark_id}`);
-    const now = Date.now();
+  // Show reminder pop-ups for all timings (15, 10, 5, 3 minutes)
+  const reminderTimings = [15, 10, 5, 3];
+  reminderTimings.forEach(mins => {
+    const reminderNotifs = notifs.filter(n => n.minutes_before === mins);
+    if (reminderNotifs.length > 0) {
+      const notif = reminderNotifs[0];
+      const reminderKey = `reminder_shown_${mins}_${notif.remark_id}`;
+      const snoozedUntil = sessionStorage.getItem(`reminder_snoozed_${notif.remark_id}`);
+      const now = Date.now();
 
-    // Check if reminder should be shown
-    if (!sessionStorage.getItem(reminderKey) && (!snoozedUntil || parseInt(snoozedUntil) < now)) {
-      // Extract time from message or use follow-up time
-      const timeMatch = notif.message.match(/(\d{1,2}:\d{2})/);
-      const followupTime = timeMatch ? timeMatch[1] : 'Soon';
+      // Check if reminder should be shown
+      if (!sessionStorage.getItem(reminderKey) && (!snoozedUntil || parseInt(snoozedUntil) < now)) {
+        // Extract time from message or use follow-up time
+        const timeMatch = notif.message.match(/(\d{1,2}:\d{2})/);
+        const followupTime = timeMatch ? timeMatch[1] : 'Soon';
 
-      showReminderPopup(
-        notif.client_name,
-        followupTime,
-        notif.message,
-        notif.remark_id
-      );
+        showReminderPopup(
+          notif.client_name,
+          followupTime,
+          notif.message,
+          notif.remark_id,
+          mins
+        );
 
-      sessionStorage.setItem(reminderKey, 'true');
+        sessionStorage.setItem(reminderKey, 'true');
+      }
     }
-  }
+  });
 
   // Also send browser notifications for critical ones (3 min before)
   const criticalNotifs = notifs.filter(n => n.minutes_before === 3);

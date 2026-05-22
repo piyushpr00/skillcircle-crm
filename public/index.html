@@ -218,16 +218,17 @@
     </div>
   </div>
 
-  <!-- 5-MINUTE REMINDER POP-UP -->
+  <!-- REMINDER POP-UPS (15, 10, 5, 3 MINUTES) -->
   <div class="modal-overlay" id="reminder-popup">
-    <div class="modal reminder-modal">
+    <div class="modal reminder-modal" id="reminder-modal-content">
       <div class="reminder-header">
-        <div class="reminder-icon">⏰</div>
-        <h2>Upcoming Follow-up!</h2>
+        <div class="reminder-icon" id="reminder-icon">⏰</div>
+        <h2 id="reminder-title">Upcoming Follow-up!</h2>
         <button class="close-btn" id="close-reminder">&times;</button>
       </div>
       <div class="reminder-content">
-        <div class="reminder-time">5 minutes remaining</div>
+        <div class="reminder-time" id="reminder-time-display">-- minutes remaining</div>
+        <div class="reminder-urgency" id="reminder-urgency-msg"></div>
         <div class="reminder-details">
           <div class="reminder-row">
             <span class="reminder-label">Client:</span>
