@@ -1705,19 +1705,32 @@ async function loadProfileSettings() {
 async function loadGeneralSettings() {
   try {
     const data = await apiFetch('/profile/preferences');
-    document.querySelector(`input[name="theme"][value="${data.theme || 'light'}"]`).checked = true;
+    const selectedTheme = data.theme || 'light';
+    document.querySelector(`input[name="theme"][value="${selectedTheme}"]`).checked = true;
     document.getElementById('sg-timezone').value = data.timezone || 'IST';
     document.getElementById('sg-date-format').value = data.date_format || 'DD/MM/YYYY';
     document.getElementById('sg-time-format').value = data.time_format || '24h';
 
+    // Apply current theme
+    toggleDarkMode(selectedTheme === 'dark');
+
+    // Listen for theme changes
+    document.querySelectorAll('input[name="theme"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        toggleDarkMode(e.target.value === 'dark');
+      });
+    });
+
     document.getElementById('general-form').onsubmit = async (e) => {
       e.preventDefault();
+      const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
       await apiFetch('/profile/preferences', 'PUT', {
-        theme: document.querySelector('input[name="theme"]:checked').value,
+        theme: selectedTheme,
         timezone: document.getElementById('sg-timezone').value,
         date_format: document.getElementById('sg-date-format').value,
         time_format: document.getElementById('sg-time-format').value
       });
+      toggleDarkMode(selectedTheme === 'dark');
       alert('General settings saved!');
     };
   } catch (e) {
@@ -1962,7 +1975,28 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ── Theme Management ──────────────────────────────────
+function toggleDarkMode(isDarkMode) {
+  if (isDarkMode) {
+    document.body.classList.add('dark-mode');
+    localStorage.setItem('theme', 'dark');
+  } else {
+    document.body.classList.remove('dark-mode');
+    localStorage.setItem('theme', 'light');
+  }
+}
+
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark-mode');
+  } else {
+    document.body.classList.remove('dark-mode');
+  }
+}
+
 // ── Init ───────────────────────────────────────────────
+initTheme();
 loadDashboard();
 setupNotifications();
 // Check for notifications every 1 minute (60000ms)

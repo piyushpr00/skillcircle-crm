@@ -24,6 +24,158 @@
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Dark Mode Theme */
+body.dark-mode {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --border: #334155;
+  --sidebar: #0f172a;
+  --sidebar-text: #cbd5e1;
+}
+
+body.dark-mode {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%) !important;
+}
+
+/* Dark Mode Form Elements */
+body.dark-mode input[type="text"],
+body.dark-mode input[type="email"],
+body.dark-mode input[type="password"],
+body.dark-mode input[type="tel"],
+body.dark-mode input[type="date"],
+body.dark-mode input[type="time"],
+body.dark-mode textarea,
+body.dark-mode select {
+  background: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #94a3b8;
+}
+
+body.dark-mode input:focus,
+body.dark-mode textarea:focus,
+body.dark-mode select:focus {
+  border-color: #60a5fa;
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+/* Dark Mode Tables */
+body.dark-mode table {
+  border-color: #334155;
+}
+
+body.dark-mode th {
+  background: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
+body.dark-mode td {
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+body.dark-mode tr:hover {
+  background: #1e293b;
+}
+
+/* Dark Mode Panels and Cards */
+body.dark-mode .panel,
+body.dark-mode .modal,
+body.dark-mode .settings-group,
+body.dark-mode .stat-card,
+body.dark-mode .settings-tab {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+/* Dark Mode Badges and Labels */
+body.dark-mode .badge,
+body.dark-mode label,
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3 {
+  color: #f1f5f9;
+}
+
+/* Dark Mode Buttons */
+body.dark-mode .btn-secondary {
+  background: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
+body.dark-mode .btn-secondary:hover {
+  background: #475569;
+  border-color: #64748b;
+}
+
+/* Dark Mode Modals */
+body.dark-mode .modal-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+body.dark-mode .modal {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Dark Mode Remarks */
+body.dark-mode .remark-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body.dark-mode .remark-text,
+body.dark-mode .remark-meta {
+  color: #cbd5e1;
+}
+
+/* Dark Mode User Status */
+body.dark-mode .user-status {
+  color: #f1f5f9;
+}
+
+body.dark-mode .status-active {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+}
+
+body.dark-mode .status-inactive {
+  background: rgba(107, 114, 128, 0.2);
+  border-color: #6b7280;
+}
+
+/* Dark Mode Reminder Popups */
+body.dark-mode .reminder-modal {
+  background: #1e293b;
+}
+
+body.dark-mode .reminder-header {
+  color: #f1f5f9;
+}
+
+body.dark-mode .reminder-content {
+  color: #cbd5e1;
+}
+
+/* Dark Mode Search and Inputs */
+body.dark-mode #search-input,
+body.dark-mode #filter-date-from,
+body.dark-mode #filter-date-to,
+body.dark-mode .view-header input {
+  background: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 50%, #f0e7ff 100%);
