@@ -92,13 +92,12 @@ async function loadDashboard() {
 
   const totalRemarks = clients.reduce((a,c) => a + (c.remark_count||0), 0);
 
-  // Get today's meetings
+  // Get today's meetings using proper IST timezone conversion
   const now = new Date();
   const istTime = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
-  const year = istTime.getUTCFullYear();
-  const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
-  const date = String(istTime.getUTCDate()).padStart(2, '0');
-  const todayDate = `${year}-${month}-${date}`;
+
+  // Format as YYYY-MM-DD (matching database format)
+  const todayDate = istTime.toLocaleDateString('en-IN', {year: 'numeric', month: '2-digit', day: '2-digit'}).split('/').reverse().join('-');
 
   const todayMeetings = meetings.filter(m => m.meeting_date === todayDate);
   const upcomingMeetings = meetings.filter(m => m.meeting_date > todayDate).slice(0, 5);
