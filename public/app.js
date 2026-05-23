@@ -103,7 +103,7 @@ async function loadDashboard() {
   const getNormalizedDate = (dateStr) => dateStr ? dateStr.split('T')[0] : dateStr;
 
   const todayMeetings = meetings.filter(m => getNormalizedDate(m.meeting_date) === todayDate);
-  const upcomingMeetings = meetings.filter(m => getNormalizedDate(m.meeting_date) > todayDate).slice(0, 5);
+  const upcomingMeetings = meetings.filter(m => getNormalizedDate(m.meeting_date) > todayDate);
 
   console.log('[DASHBOARD] Today date:', todayDate);
   console.log('[DASHBOARD] All meetings:', meetings.map(m => ({ title: m.title, date: m.meeting_date, normalized: getNormalizedDate(m.meeting_date) })));
