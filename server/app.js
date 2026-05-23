@@ -358,11 +358,26 @@ app.post('/api/meetings', async (req, res) => {
 app.put('/api/meetings/:id', async (req, res) => {
   try {
     const { title, description, meeting_date, meeting_time, duration, location, status } = req.body;
-    const { rows } = await pool.query(
-      `UPDATE meetings SET title = $1, description = $2, meeting_date = $3, meeting_time = $4, duration = $5, location = $6, status = $7, updated_at = NOW()
-       WHERE id = $8 RETURNING *`,
-      [title, description, meeting_date, meeting_time, duration, location, status, req.params.id]
-    );
+
+    // Build dynamic update query based on provided fields
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (title !== undefined) { updates.push(`title = $${paramCount++}`); values.push(title); }
+    if (description !== undefined) { updates.push(`description = $${paramCount++}`); values.push(description); }
+    if (meeting_date !== undefined) { updates.push(`meeting_date = $${paramCount++}`); values.push(meeting_date); }
+    if (meeting_time !== undefined) { updates.push(`meeting_time = $${paramCount++}`); values.push(meeting_time); }
+    if (duration !== undefined) { updates.push(`duration = $${paramCount++}`); values.push(duration); }
+    if (location !== undefined) { updates.push(`location = $${paramCount++}`); values.push(location); }
+    if (status !== undefined) { updates.push(`status = $${paramCount++}`); values.push(status); }
+
+    updates.push(`updated_at = NOW()`);
+    values.push(req.params.id);
+
+    const query = `UPDATE meetings SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`;
+
+    const { rows } = await pool.query(query, values);
     if (!rows[0]) return res.status(404).json({ error: 'Meeting not found' });
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }

@@ -107,8 +107,10 @@ async function loadDashboard() {
   // Extract date part (handle cases where meeting_date includes time like 2026-05-23T11:00:00)
   const getNormalizedDate = (dateStr) => dateStr ? dateStr.split('T')[0] : dateStr;
 
-  // Filter today's meetings that haven't passed yet
+  // Filter today's meetings that haven't passed yet (and not completed)
   const todayMeetings = meetings.filter(m => {
+    if (m.status === 'completed') return false;
+
     const meetingDate = getNormalizedDate(m.meeting_date);
     if (meetingDate !== todayDate) return false;
 
@@ -118,8 +120,10 @@ async function loadDashboard() {
     return meetingTimeShort >= currentTime;
   });
 
-  // Filter upcoming meetings (future dates or today's meetings that haven't started)
+  // Filter upcoming meetings (future dates or today's meetings that haven't started, excluding completed)
   const upcomingMeetings = meetings.filter(m => {
+    if (m.status === 'completed') return false;
+
     const meetingDate = getNormalizedDate(m.meeting_date);
 
     // If meeting is in the future, include it
@@ -200,6 +204,7 @@ async function loadDashboard() {
             <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">${m.meeting_time ? m.meeting_time.substring(0,5) : '--:--'}</div>
             <div style="font-size:.75rem;color:var(--muted)">${m.duration || 30}m</div>
           </div>
+          <button class="btn btn-sm btn-success" onclick="markMeetingDone(${m.id})">Done</button>
         </div>`).join('');
 
   // Display upcoming meetings
@@ -217,6 +222,7 @@ async function loadDashboard() {
             <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">${formatDateIST(m.meeting_date)}</div>
             <div style="font-size:.75rem;color:var(--muted)">${m.meeting_time ? m.meeting_time.substring(0,5) : '--:--'}</div>
           </div>
+          <button class="btn btn-sm btn-success" onclick="markMeetingDone(${m.id})">Done</button>
         </div>`).join('');
 
   // Animate meeting cards
@@ -1805,6 +1811,7 @@ function renderMeetings(meetings) {
             <h3>${esc(m.title)}</h3>
           </div>
           <div class="meeting-actions">
+            ${m.status !== 'completed' ? `<button class="btn btn-sm btn-success" onclick="markMeetingDone(${m.id})">Mark Done</button>` : ''}
             <button class="btn btn-sm btn-secondary" onclick="editMeeting(${m.id})">Edit</button>
             <button class="btn btn-sm btn-danger" onclick="deleteMeeting(${m.id})">Delete</button>
           </div>
@@ -1869,6 +1876,22 @@ async function deleteMeeting(meetingId) {
       console.error(e);
       toast('Failed to delete meeting', 'error');
     }
+  }
+}
+
+async function markMeetingDone(meetingId) {
+  try {
+    const res = await apiFetch(`/meetings/${meetingId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'completed' })
+    });
+    if (!res.ok) throw new Error(res.statusText);
+    toast('Meeting marked as done', 'success');
+    loadDashboard();
+    loadMeetings();
+  } catch (e) {
+    console.error(e);
+    toast('Failed to mark meeting as done', 'error');
   }
 }
 
