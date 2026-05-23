@@ -329,10 +329,10 @@ app.post('/api/test-notification', adminOnly, async (req, res) => {
 app.get('/api/meetings', async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT m.*, c.name as client_name, u.username as assigned_user
+      SELECT m.*, c.name as client_name, u.username as executive_name
       FROM meetings m
       LEFT JOIN clients c ON m.client_id = c.id
-      LEFT JOIN users u ON m.assigned_to = u.id
+      LEFT JOIN users u ON c.assigned_to = u.id
       ORDER BY m.meeting_date ASC, m.meeting_time ASC
     `);
     res.json(rows);
@@ -341,7 +341,7 @@ app.get('/api/meetings', async (req, res) => {
 
 app.post('/api/meetings', async (req, res) => {
   try {
-    const { client_id, assigned_to, title, description, meeting_date, meeting_time, duration, location } = req.body;
+    const { client_id, title, description, meeting_date, meeting_time, duration, location } = req.body;
     if (!title || !client_id || !meeting_date || !meeting_time) {
       return res.status(400).json({ error: 'Title, client, date, and time are required' });
     }
@@ -349,7 +349,7 @@ app.post('/api/meetings', async (req, res) => {
       `INSERT INTO meetings (client_id, assigned_to, title, description, meeting_date, meeting_time, duration, location, created_by, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'scheduled')
        RETURNING *`,
-      [client_id, assigned_to, title, description, meeting_date, meeting_time, duration || 30, location, req.user.id]
+      [client_id, req.user.id, title, description, meeting_date, meeting_time, duration || 30, location, req.user.id]
     );
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }

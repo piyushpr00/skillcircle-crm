@@ -102,6 +102,22 @@ async function checkAndSendNotifications() {
         LIMIT 10
       `, [todayDate, currentTime, minutesBefore, minutesBefore]);
 
+      // Find meetings that should trigger a notification
+      const { rows: meetings } = await pool.query(`
+        SELECT m.id, m.title, m.meeting_date, m.meeting_time, m.client_id, m.assigned_to, c.name AS client_name, u.email
+        FROM meetings m
+        JOIN clients c ON m.client_id = c.id
+        LEFT JOIN users u ON m.assigned_to = u.id
+        WHERE m.meeting_date = $1
+          AND m.meeting_time IS NOT NULL
+          AND ABS(EXTRACT(EPOCH FROM (m.meeting_time - CAST($2 AS TIME))) - ($3 * 60)) < 30
+          AND NOT EXISTS (
+            SELECT 1 FROM meeting_notifications
+            WHERE meeting_id = m.id AND minutes_before = $4
+          )
+        LIMIT 10
+      `, [todayDate, currentTime, minutesBefore, minutesBefore]);
+
       console.log(`[NOTIFICATION CHECK] IST Time: ${currentTime}, Date: ${todayDate}, Minutes Before: ${minutesBefore}, Found: ${remarks.length}`);
 
       for (const remark of remarks) {
@@ -150,6 +166,56 @@ async function checkAndSendNotifications() {
           }
         } catch (err) {
           console.error(`Failed to record notification for remark ${remark.id}:`, err.message);
+        }
+      }
+
+      // Process meeting notifications
+      for (const meeting of meetings) {
+        try {
+          // Check if user wants this notification
+          const shouldSend = await shouldSendNotification(meeting.assigned_to, minutesBefore, meeting.meeting_time);
+
+          if (!shouldSend) {
+            console.log(`[NOTIFICATION SKIPPED] User preferences prevent ${minutesBefore}min notification for meeting ${meeting.id}`);
+            continue;
+          }
+
+          // Record the notification as sent
+          await pool.query(`
+            INSERT INTO meeting_notifications (meeting_id, minutes_before, sent_at)
+            VALUES ($1, $2, NOW())
+            ON CONFLICT (meeting_id, minutes_before) DO NOTHING
+          `, [meeting.id, minutesBefore]);
+
+          // Log the notification for auditing
+          const message = `Meeting: ${meeting.title} with ${meeting.client_name}`;
+          await pool.query(`
+            INSERT INTO notification_logs (remark_id, client_name, minutes_before, message)
+            VALUES ($1, $2, $3, $4)
+          `, [meeting.id, message, minutesBefore, `Meeting reminder - ${message}`]);
+
+          console.log(`[MEETING NOTIFICATION] ${minutesBefore}min before: ${message}`);
+
+          // Get user's notification preferences
+          const { rows: notifPrefs } = await pool.query(
+            'SELECT * FROM notification_preferences WHERE user_id = $1',
+            [meeting.assigned_to]
+          );
+          const prefs = notifPrefs[0] || {};
+
+          // Send email notification if user has email and has enabled email notifications
+          if (meeting.email && prefs.email_notifications !== false) {
+            const meetingDateTime = `${meeting.meeting_date} at ${meeting.meeting_time}`;
+            await sendNotificationEmail(
+              meeting.email,
+              meeting.client_name,
+              meeting.title,
+              meetingDateTime,
+              minutesBefore
+            );
+          }
+        } catch (err) {
+          console.error(`Failed to record notification for meeting ${meeting.id}:`, err.message);
         }
       }
     }

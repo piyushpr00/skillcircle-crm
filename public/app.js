@@ -1731,8 +1731,8 @@ function renderMeetings(meetings) {
             <span class="value">${esc(m.client_name || 'Unassigned')}</span>
           </div>
           <div class="detail-row">
-            <span class="label">👔 Assigned To:</span>
-            <span class="value">${esc(m.assigned_user || 'Unassigned')}</span>
+            <span class="label">👔 Executive:</span>
+            <span class="value">${esc(m.executive_name || 'Unassigned')}</span>
           </div>
           ${m.location ? `<div class="detail-row">
             <span class="label">📍 Location:</span>
@@ -1762,7 +1762,6 @@ async function editMeeting(meetingId) {
   document.getElementById('m-duration').value = meeting.duration || 30;
   document.getElementById('m-description').value = meeting.description || '';
   document.getElementById('m-client').value = meeting.client_id;
-  document.getElementById('m-assigned-to').value = meeting.assigned_to || '';
 
   document.getElementById('meeting-modal').classList.add('open');
 }
@@ -1787,24 +1786,17 @@ document.getElementById('btn-add-meeting')?.addEventListener('click', async () =
   document.getElementById('meeting-form').reset();
 
   try {
-    // Load clients and users for dropdowns
+    // Load clients for dropdown
     const clientRes = await apiFetch('/clients');
-    const usersRes = await apiFetch('/auth/users');
 
     if (!clientRes.ok) throw new Error('Failed to load clients');
-    if (!usersRes.ok) throw new Error('Failed to load users');
 
     const clients = await clientRes.json();
-    const users = await usersRes.json();
 
     const clientSelect = document.getElementById('m-client');
-    const userSelect = document.getElementById('m-assigned-to');
 
     clientSelect.innerHTML = '<option value="">Select a client...</option>' +
       clients.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-
-    userSelect.innerHTML = '<option value="">Unassigned</option>' +
-      users.filter(u => u.role === 'executive').map(u => `<option value="${u.id}">${esc(u.username)}</option>`).join('');
 
     document.getElementById('meeting-modal').classList.add('open');
   } catch (e) {
@@ -1827,7 +1819,6 @@ document.getElementById('meeting-form')?.addEventListener('submit', async (e) =>
   const data = {
     title: document.getElementById('m-title').value,
     client_id: parseInt(document.getElementById('m-client').value),
-    assigned_to: document.getElementById('m-assigned-to').value ? parseInt(document.getElementById('m-assigned-to').value) : null,
     meeting_date: document.getElementById('m-date').value,
     meeting_time: document.getElementById('m-time').value + ':00',
     duration: parseInt(document.getElementById('m-duration').value),
