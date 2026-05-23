@@ -1978,6 +1978,23 @@ body.dark-mode .meeting-card.upcoming {
   background: linear-gradient(180deg, #dc2626, #991b1b);
 }
 
+.meeting-card-compact.completed {
+  background: linear-gradient(135deg, rgba(220, 252, 231, 0.9), rgba(187, 247, 208, 0.9));
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.meeting-card-compact.completed::before {
+  background: linear-gradient(180deg, #16a34a, #15803d);
+}
+
+.meeting-card-compact.completed .meeting-card-title {
+  color: #166534;
+}
+
+.meeting-card-compact.completed .meeting-card-client {
+  color: #4b5563;
+}
+
 .meeting-card-compact:hover {
   transform: translateX(4px);
   box-shadow: 0 4px 16px rgba(37, 99, 235, 0.1);
@@ -2022,6 +2039,19 @@ body.dark-mode .meeting-card-compact.today {
 
 body.dark-mode .meeting-card-compact.upcoming {
   border-color: rgba(37, 99, 235, 0.3);
+}
+
+body.dark-mode .meeting-card-compact.completed {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.8), rgba(5, 46, 22, 0.8));
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+body.dark-mode .meeting-card-compact.completed .meeting-card-title {
+  color: #86efac;
+}
+
+body.dark-mode .meeting-card-compact.completed .meeting-card-client {
+  color: #a1f3e0;
 }
 
 /* ═══════════════════════════════════════════════════════ */

@@ -107,12 +107,13 @@ async function loadDashboard() {
   // Extract date part (handle cases where meeting_date includes time like 2026-05-23T11:00:00)
   const getNormalizedDate = (dateStr) => dateStr ? dateStr.split('T')[0] : dateStr;
 
-  // Filter today's meetings that haven't passed yet (and not completed)
+  // Filter today's meetings (including completed ones)
   const todayMeetings = meetings.filter(m => {
-    if (m.status === 'completed') return false;
-
     const meetingDate = getNormalizedDate(m.meeting_date);
     if (meetingDate !== todayDate) return false;
+
+    // Show both upcoming and completed meetings for today
+    if (m.status === 'completed') return true;
 
     // For today's meetings, check if time hasn't passed
     const meetingTime = m.meeting_time || '00:00:00';
@@ -120,21 +121,15 @@ async function loadDashboard() {
     return meetingTimeShort >= currentTime;
   });
 
-  // Filter upcoming meetings (future dates or today's meetings that haven't started, excluding completed)
+  // Filter upcoming meetings (future dates or today's meetings, including completed)
   const upcomingMeetings = meetings.filter(m => {
-    if (m.status === 'completed') return false;
-
     const meetingDate = getNormalizedDate(m.meeting_date);
 
     // If meeting is in the future, include it
     if (meetingDate > todayDate) return true;
 
-    // If meeting is today, only include if time hasn't passed
-    if (meetingDate === todayDate) {
-      const meetingTime = m.meeting_time || '00:00:00';
-      const meetingTimeShort = meetingTime.substring(0, 5); // HH:MM format
-      return meetingTimeShort >= currentTime;
-    }
+    // If meeting is today, include both upcoming and completed
+    if (meetingDate === todayDate) return true;
 
     return false;
   });
@@ -194,9 +189,11 @@ async function loadDashboard() {
   todayMeetingsList.innerHTML = todayMeetings.length === 0
     ? '<div class="empty-state">No meetings scheduled for today.</div>'
     : todayMeetings.map(m => `
-        <div class="meeting-card-compact today">
+        <div class="meeting-card-compact ${m.status === 'completed' ? 'completed' : 'today'}">
           <div style="flex:1">
-            <div class="meeting-card-title">${esc(m.title)}</div>
+            <div class="meeting-card-title">
+              ${m.status === 'completed' ? '✓ ' : ''}${esc(m.title)}
+            </div>
             <div class="meeting-card-client">Client: ${esc(m.client_name || 'Unassigned')}</div>
             <div class="meeting-card-executive">Executive: ${esc(m.executive_name || 'Unassigned')}</div>
           </div>
@@ -204,7 +201,7 @@ async function loadDashboard() {
             <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">${m.meeting_time ? m.meeting_time.substring(0,5) : '--:--'}</div>
             <div style="font-size:.75rem;color:var(--muted)">${m.duration || 30}m</div>
           </div>
-          <button class="btn btn-sm btn-success" onclick="markMeetingDone(${m.id})">Done</button>
+          ${m.status !== 'completed' ? `<button class="btn btn-sm btn-success" onclick="markMeetingDone(${m.id})">Done</button>` : '<span style="color:var(--success);font-weight:600">Done</span>'}
         </div>`).join('');
 
   // Display upcoming meetings
@@ -212,9 +209,11 @@ async function loadDashboard() {
   upcomingMeetingsList.innerHTML = upcomingMeetings.length === 0
     ? '<div class="empty-state">No upcoming meetings scheduled.</div>'
     : upcomingMeetings.map(m => `
-        <div class="meeting-card-compact upcoming">
+        <div class="meeting-card-compact ${m.status === 'completed' ? 'completed' : 'upcoming'}">
           <div style="flex:1">
-            <div class="meeting-card-title">${esc(m.title)}</div>
+            <div class="meeting-card-title">
+              ${m.status === 'completed' ? '✓ ' : ''}${esc(m.title)}
+            </div>
             <div class="meeting-card-client">Client: ${esc(m.client_name || 'Unassigned')}</div>
             <div class="meeting-card-executive">Executive: ${esc(m.executive_name || 'Unassigned')}</div>
           </div>
@@ -222,7 +221,7 @@ async function loadDashboard() {
             <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">${formatDateIST(m.meeting_date)}</div>
             <div style="font-size:.75rem;color:var(--muted)">${m.meeting_time ? m.meeting_time.substring(0,5) : '--:--'}</div>
           </div>
-          <button class="btn btn-sm btn-success" onclick="markMeetingDone(${m.id})">Done</button>
+          ${m.status !== 'completed' ? `<button class="btn btn-sm btn-success" onclick="markMeetingDone(${m.id})">Done</button>` : '<span style="color:var(--success);font-weight:600">Done</span>'}
         </div>`).join('');
 
   // Animate meeting cards
