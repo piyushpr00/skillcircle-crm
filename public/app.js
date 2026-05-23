@@ -99,15 +99,44 @@ async function loadDashboard() {
   // Format as YYYY-MM-DD (matching database format)
   const todayDate = istTime.toLocaleDateString('en-IN', {year: 'numeric', month: '2-digit', day: '2-digit'}).split('/').reverse().join('-');
 
+  // Get current IST time in HH:MM:SS format
+  const currentHours = String(istTime.getUTCHours()).padStart(2, '0');
+  const currentMinutes = String(istTime.getUTCMinutes()).padStart(2, '0');
+  const currentTime = `${currentHours}:${currentMinutes}`;
+
   // Extract date part (handle cases where meeting_date includes time like 2026-05-23T11:00:00)
   const getNormalizedDate = (dateStr) => dateStr ? dateStr.split('T')[0] : dateStr;
 
-  const todayMeetings = meetings.filter(m => getNormalizedDate(m.meeting_date) === todayDate);
-  const upcomingMeetings = meetings.filter(m => getNormalizedDate(m.meeting_date) > todayDate);
+  // Filter today's meetings that haven't passed yet
+  const todayMeetings = meetings.filter(m => {
+    const meetingDate = getNormalizedDate(m.meeting_date);
+    if (meetingDate !== todayDate) return false;
 
-  console.log('[DASHBOARD] Today date:', todayDate);
-  console.log('[DASHBOARD] All meetings:', meetings.map(m => ({ title: m.title, date: m.meeting_date, normalized: getNormalizedDate(m.meeting_date) })));
-  console.log('[DASHBOARD] Today meetings count:', todayMeetings.length);
+    // For today's meetings, check if time hasn't passed
+    const meetingTime = m.meeting_time || '00:00:00';
+    const meetingTimeShort = meetingTime.substring(0, 5); // HH:MM format
+    return meetingTimeShort >= currentTime;
+  });
+
+  // Filter upcoming meetings (future dates or today's meetings that haven't started)
+  const upcomingMeetings = meetings.filter(m => {
+    const meetingDate = getNormalizedDate(m.meeting_date);
+
+    // If meeting is in the future, include it
+    if (meetingDate > todayDate) return true;
+
+    // If meeting is today, only include if time hasn't passed
+    if (meetingDate === todayDate) {
+      const meetingTime = m.meeting_time || '00:00:00';
+      const meetingTimeShort = meetingTime.substring(0, 5); // HH:MM format
+      return meetingTimeShort >= currentTime;
+    }
+
+    return false;
+  });
+
+  console.log('[DASHBOARD] Current IST time:', currentTime, 'Date:', todayDate);
+  console.log('[DASHBOARD] Today meetings:', todayMeetings.length, 'Upcoming meetings:', upcomingMeetings.length);
 
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="stat-label">Total Clients</div><div class="stat-value">${clients.length}</div></div>
