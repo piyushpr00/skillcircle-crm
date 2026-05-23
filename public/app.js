@@ -1794,7 +1794,10 @@ function renderMeetings(meetings) {
 
     let statusClass = 'upcoming';
     let statusIcon = '🔵';
-    if (isPast && m.status !== 'completed') {
+    if (m.status === 'completed') {
+      statusClass = 'completed';
+      statusIcon = '✓';
+    } else if (isPast) {
       statusClass = 'overdue';
       statusIcon = '🔴';
     } else if (isToday) {
@@ -1807,10 +1810,10 @@ function renderMeetings(meetings) {
         <div class="meeting-header">
           <div class="meeting-title">
             <span class="status-icon">${statusIcon}</span>
-            <h3>${esc(m.title)}</h3>
+            <h3>${m.status === 'completed' ? '✓ ' : ''}${esc(m.title)}</h3>
           </div>
           <div class="meeting-actions">
-            ${m.status !== 'completed' ? `<button class="btn btn-sm btn-success" onclick="markMeetingDone(${m.id})">Mark Done</button>` : ''}
+            ${m.status !== 'completed' ? `<button class="btn btn-sm btn-success" onclick="markMeetingDone(${m.id})">Mark Done</button>` : '<span style="color:var(--success);font-weight:600">Done</span>'}
             <button class="btn btn-sm btn-secondary" onclick="editMeeting(${m.id})">Edit</button>
             <button class="btn btn-sm btn-danger" onclick="deleteMeeting(${m.id})">Delete</button>
           </div>

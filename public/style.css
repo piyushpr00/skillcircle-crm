@@ -1844,6 +1844,16 @@ h3 {
   background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
 }
 
+.meeting-card.completed::before {
+  background: linear-gradient(90deg, #16a34a, #15803d);
+  left: 0;
+}
+
+.meeting-card.completed {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
 .meeting-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 48px rgba(37, 99, 235, 0.15);
@@ -1932,6 +1942,11 @@ body.dark-mode .meeting-card.today {
 body.dark-mode .meeting-card.upcoming {
   background: linear-gradient(135deg, rgba(15, 50, 109, 0.3), rgba(37, 99, 235, 0.1));
   border-color: rgba(37, 99, 235, 0.3);
+}
+
+body.dark-mode .meeting-card.completed {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.4), rgba(5, 46, 22, 0.2));
+  border-color: rgba(34, 197, 94, 0.4);
 }
 
 /* ─ Compact Meeting Cards for Dashboard ─ */
