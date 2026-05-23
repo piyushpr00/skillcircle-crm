@@ -133,6 +133,32 @@ async function init() {
       expires_at TIMESTAMP,
       logout_at TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS meetings (
+      id SERIAL PRIMARY KEY,
+      client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+      assigned_to INTEGER REFERENCES users(id),
+      title TEXT NOT NULL,
+      description TEXT,
+      meeting_date DATE NOT NULL,
+      meeting_time TIME NOT NULL,
+      duration INTEGER DEFAULT 30,
+      location TEXT,
+      meeting_link TEXT,
+      status TEXT DEFAULT 'scheduled',
+      created_by INTEGER REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS meeting_notifications (
+      id SERIAL PRIMARY KEY,
+      meeting_id INTEGER REFERENCES meetings(id) ON DELETE CASCADE,
+      minutes_before INTEGER,
+      sent_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(meeting_id, minutes_before)
+    );
   `);
 
   const { rows } = await pool.query('SELECT COUNT(*) FROM users');

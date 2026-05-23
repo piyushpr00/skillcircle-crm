@@ -325,6 +325,56 @@ app.post('/api/test-notification', adminOnly, async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+// ── Meetings ────────────────────────────────────────────
+app.get('/api/meetings', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT m.*, c.name as client_name, u.username as assigned_user
+      FROM meetings m
+      LEFT JOIN clients c ON m.client_id = c.id
+      LEFT JOIN users u ON m.assigned_to = u.id
+      ORDER BY m.meeting_date ASC, m.meeting_time ASC
+    `);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/meetings', async (req, res) => {
+  try {
+    const { client_id, assigned_to, title, description, meeting_date, meeting_time, duration, location } = req.body;
+    if (!title || !client_id || !meeting_date || !meeting_time) {
+      return res.status(400).json({ error: 'Title, client, date, and time are required' });
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO meetings (client_id, assigned_to, title, description, meeting_date, meeting_time, duration, location, created_by, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'scheduled')
+       RETURNING *`,
+      [client_id, assigned_to, title, description, meeting_date, meeting_time, duration || 30, location, req.user.id]
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/meetings/:id', async (req, res) => {
+  try {
+    const { title, description, meeting_date, meeting_time, duration, location, status } = req.body;
+    const { rows } = await pool.query(
+      `UPDATE meetings SET title = $1, description = $2, meeting_date = $3, meeting_time = $4, duration = $5, location = $6, status = $7, updated_at = NOW()
+       WHERE id = $8 RETURNING *`,
+      [title, description, meeting_date, meeting_time, duration, location, status, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Meeting not found' });
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/meetings/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM meetings WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Lazy DB init flag for serverless
 let _ready = false;
 app.dbInit = async () => {

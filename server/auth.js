@@ -49,12 +49,16 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// List users (admin only)
-router.get('/users', auth, adminOnly, async (req, res) => {
-  const { rows } = await pool.query(
-    'SELECT id, username, email, full_name, role, created_at, last_login, is_active, updated_at FROM users ORDER BY created_at ASC'
-  );
-  res.json(rows);
+// List users (all authenticated users can view, but admin can see all details)
+router.get('/users', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, username, email, full_name, role, created_at, last_login, is_active, updated_at FROM users ORDER BY created_at ASC'
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Get single user (admin only)

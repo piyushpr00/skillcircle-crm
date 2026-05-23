@@ -77,6 +77,7 @@ function switchView(name) {
   if (name === 'dashboard') loadDashboard();
   if (name === 'clients')   loadClients();
   if (name === 'followups') loadUpcoming();
+  if (name === 'meetings')  loadMeetings();
   if (name === 'users')     loadUsers();
   if (name === 'settings')  loadSettings();
 }
@@ -1649,6 +1650,209 @@ document.getElementById('select-all-followups')?.addEventListener('change', (e) 
 });
 
 document.getElementById('btn-delete-selected')?.addEventListener('click', deleteSelectedFollowups);
+
+// ── Meetings ───────────────────────────────────────────
+let allMeetings = [];
+
+async function loadMeetings() {
+  try {
+    const res = await apiFetch('/meetings');
+    if (!res.ok) throw new Error(res.statusText);
+    const meetings = await res.json();
+    allMeetings = meetings;
+    renderMeetings(meetings);
+
+    // Setup filter
+    const filterEl = document.getElementById('filter-meeting-date');
+    if (filterEl) {
+      filterEl.addEventListener('change', (e) => {
+        const selectedDate = e.target.value;
+        if (selectedDate) {
+          const filtered = meetings.filter(m => m.meeting_date === selectedDate);
+          renderMeetings(filtered);
+        } else {
+          renderMeetings(meetings);
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Error loading meetings:', e);
+    toast('Failed to load meetings', 'error');
+  }
+}
+
+function renderMeetings(meetings) {
+  const container = document.getElementById('meetings-container');
+
+  if (meetings.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>📅 No scheduled meetings</p></div>';
+    return;
+  }
+
+  const html = meetings.map(m => {
+    const meetingDate = new Date(m.meeting_date);
+    const now = new Date();
+    const isPast = meetingDate < now;
+    const isToday = meetingDate.toDateString() === now.toDateString();
+
+    let statusClass = 'upcoming';
+    let statusIcon = '🔵';
+    if (isPast && m.status !== 'completed') {
+      statusClass = 'overdue';
+      statusIcon = '🔴';
+    } else if (isToday) {
+      statusClass = 'today';
+      statusIcon = '🟠';
+    }
+
+    return `
+      <div class="meeting-card ${statusClass}">
+        <div class="meeting-header">
+          <div class="meeting-title">
+            <span class="status-icon">${statusIcon}</span>
+            <h3>${esc(m.title)}</h3>
+          </div>
+          <div class="meeting-actions">
+            <button class="btn btn-sm btn-secondary" onclick="editMeeting(${m.id})">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteMeeting(${m.id})">Delete</button>
+          </div>
+        </div>
+        <div class="meeting-details">
+          <div class="detail-row">
+            <span class="label">📅 Date:</span>
+            <span class="value">${formatDateIST(m.meeting_date)}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">⏰ Time:</span>
+            <span class="value">${m.meeting_time.substring(0, 5)} (${m.duration} min)</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">👤 Client:</span>
+            <span class="value">${esc(m.client_name || 'Unassigned')}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">👔 Assigned To:</span>
+            <span class="value">${esc(m.assigned_user || 'Unassigned')}</span>
+          </div>
+          ${m.location ? `<div class="detail-row">
+            <span class="label">📍 Location:</span>
+            <span class="value">${esc(m.location)}</span>
+          </div>` : ''}
+          ${m.description ? `<div class="detail-row">
+            <span class="label">📝 Notes:</span>
+            <span class="value">${esc(m.description)}</span>
+          </div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = html;
+}
+
+async function editMeeting(meetingId) {
+  const meeting = allMeetings.find(m => m.id === meetingId);
+  if (!meeting) return;
+
+  document.getElementById('meeting-id').value = meeting.id;
+  document.getElementById('m-title').value = meeting.title;
+  document.getElementById('m-location').value = meeting.location || '';
+  document.getElementById('m-date').value = meeting.meeting_date;
+  document.getElementById('m-time').value = meeting.meeting_time.substring(0, 5);
+  document.getElementById('m-duration').value = meeting.duration || 30;
+  document.getElementById('m-description').value = meeting.description || '';
+  document.getElementById('m-client').value = meeting.client_id;
+  document.getElementById('m-assigned-to').value = meeting.assigned_to || '';
+
+  document.getElementById('meeting-modal').classList.add('active');
+}
+
+async function deleteMeeting(meetingId) {
+  if (confirm('Delete this meeting?')) {
+    try {
+      const res = await apiFetch(`/meetings/${meetingId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(res.statusText);
+      toast('Meeting deleted', 'success');
+      loadMeetings();
+    } catch (e) {
+      console.error(e);
+      toast('Failed to delete meeting', 'error');
+    }
+  }
+}
+
+// Meeting Modal Handlers
+document.getElementById('btn-add-meeting')?.addEventListener('click', async () => {
+  document.getElementById('meeting-id').value = '';
+  document.getElementById('meeting-form').reset();
+
+  try {
+    // Load clients and users for dropdowns
+    const clientRes = await apiFetch('/clients');
+    const usersRes = await apiFetch('/auth/users');
+
+    if (!clientRes.ok) throw new Error('Failed to load clients');
+    if (!usersRes.ok) throw new Error('Failed to load users');
+
+    const clients = await clientRes.json();
+    const users = await usersRes.json();
+
+    const clientSelect = document.getElementById('m-client');
+    const userSelect = document.getElementById('m-assigned-to');
+
+    clientSelect.innerHTML = '<option value="">Select a client...</option>' +
+      clients.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+
+    userSelect.innerHTML = '<option value="">Unassigned</option>' +
+      users.filter(u => u.role === 'executive').map(u => `<option value="${u.id}">${esc(u.username)}</option>`).join('');
+
+    document.getElementById('meeting-modal').classList.add('active');
+  } catch (e) {
+    console.error(e);
+    toast('Failed to load meeting form', 'error');
+  }
+});
+
+document.getElementById('cancel-meeting')?.addEventListener('click', () => {
+  document.getElementById('meeting-modal').classList.remove('active');
+});
+
+document.getElementById('close-meeting-modal')?.addEventListener('click', () => {
+  document.getElementById('meeting-modal').classList.remove('active');
+});
+
+document.getElementById('meeting-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const meetingId = document.getElementById('meeting-id').value;
+  const data = {
+    title: document.getElementById('m-title').value,
+    client_id: parseInt(document.getElementById('m-client').value),
+    assigned_to: document.getElementById('m-assigned-to').value ? parseInt(document.getElementById('m-assigned-to').value) : null,
+    meeting_date: document.getElementById('m-date').value,
+    meeting_time: document.getElementById('m-time').value + ':00',
+    duration: parseInt(document.getElementById('m-duration').value),
+    location: document.getElementById('m-location').value,
+    description: document.getElementById('m-description').value
+  };
+
+  try {
+    let res;
+    if (meetingId) {
+      res = await apiFetch(`/meetings/${meetingId}`, { method: 'PUT', body: JSON.stringify(data) });
+    } else {
+      res = await apiFetch('/meetings', { method: 'POST', body: JSON.stringify(data) });
+    }
+
+    if (!res.ok) throw new Error(res.statusText);
+
+    document.getElementById('meeting-modal').classList.remove('active');
+    toast('Meeting saved successfully!', 'success');
+    loadMeetings();
+  } catch (e) {
+    console.error(e);
+    toast('Error saving meeting: ' + e.message, 'error');
+  }
+});
 
 // ── Settings ───────────────────────────────────────────
 async function loadSettings() {

@@ -16,6 +16,7 @@
       <button class="nav-btn active" data-view="dashboard">Dashboard</button>
       <button class="nav-btn" data-view="clients">Clients</button>
       <button class="nav-btn" data-view="followups">Follow-ups</button>
+      <button class="nav-btn" data-view="meetings">📅 Meetings</button>
       <button class="nav-btn admin-only" data-view="users" style="display:none">Users</button>
     </nav>
     <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 8px;">
@@ -129,6 +130,18 @@
           <tbody id="user-tbody"></tbody>
         </table>
       </div>
+    </section>
+
+    <!-- MEETINGS -->
+    <section id="view-meetings" class="view">
+      <div class="view-header">
+        <h1>📅 Meetings</h1>
+        <div class="header-actions">
+          <input type="date" id="filter-meeting-date" placeholder="Filter by date"/>
+          <button class="btn btn-primary" id="btn-add-meeting">+ Schedule Meeting</button>
+        </div>
+      </div>
+      <div id="meetings-container" class="meetings-list"></div>
     </section>
 
     <!-- SETTINGS -->
@@ -639,6 +652,43 @@
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" id="cancel-reset-password">Cancel</button>
           <button type="submit" class="btn btn-danger">Reset Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MEETING MODAL -->
+  <div class="modal-overlay" id="meeting-modal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2>Schedule Meeting</h2>
+        <button class="close-btn" id="close-meeting-modal">&times;</button>
+      </div>
+      <form id="meeting-form">
+        <input type="hidden" id="meeting-id"/>
+        <div class="form-grid">
+          <div class="field">
+            <label>Client *</label>
+            <select id="m-client" required>
+              <option value="">Select a client...</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Assign To</label>
+            <select id="m-assigned-to">
+              <option value="">Unassigned</option>
+            </select>
+          </div>
+          <div class="field"><label>Meeting Title *</label><input type="text" id="m-title" placeholder="e.g., Project Discussion" required/></div>
+          <div class="field"><label>Location/Link</label><input type="text" id="m-location" placeholder="Office or Zoom link"/></div>
+          <div class="field"><label>Meeting Date *</label><input type="date" id="m-date" required/></div>
+          <div class="field"><label>Meeting Time *</label><input type="time" id="m-time" required/></div>
+          <div class="field"><label>Duration (minutes)</label><input type="number" id="m-duration" value="30" min="15"/></div>
+          <div class="field full"><label>Description</label><textarea id="m-description" rows="3" placeholder="Add meeting agenda or notes..."></textarea></div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="cancel-meeting">Cancel</button>
+          <button type="submit" class="btn btn-primary">Schedule Meeting</button>
         </div>
       </form>
     </div>
