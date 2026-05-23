@@ -99,14 +99,15 @@ async function loadDashboard() {
   // Format as YYYY-MM-DD (matching database format)
   const todayDate = istTime.toLocaleDateString('en-IN', {year: 'numeric', month: '2-digit', day: '2-digit'}).split('/').reverse().join('-');
 
-  console.log('[DASHBOARD] Today date:', todayDate);
-  console.log('[DASHBOARD] All meetings:', meetings.map(m => ({ title: m.title, date: m.meeting_date })));
+  // Extract date part (handle cases where meeting_date includes time like 2026-05-23T11:00:00)
+  const getNormalizedDate = (dateStr) => dateStr ? dateStr.split('T')[0] : dateStr;
 
-  const todayMeetings = meetings.filter(m => {
-    console.log(`[DASHBOARD] Comparing ${m.meeting_date} === ${todayDate}:`, m.meeting_date === todayDate);
-    return m.meeting_date === todayDate;
-  });
-  const upcomingMeetings = meetings.filter(m => m.meeting_date > todayDate).slice(0, 5);
+  const todayMeetings = meetings.filter(m => getNormalizedDate(m.meeting_date) === todayDate);
+  const upcomingMeetings = meetings.filter(m => getNormalizedDate(m.meeting_date) > todayDate).slice(0, 5);
+
+  console.log('[DASHBOARD] Today date:', todayDate);
+  console.log('[DASHBOARD] All meetings:', meetings.map(m => ({ title: m.title, date: m.meeting_date, normalized: getNormalizedDate(m.meeting_date) })));
+  console.log('[DASHBOARD] Today meetings count:', todayMeetings.length);
 
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="stat-label">Total Clients</div><div class="stat-value">${clients.length}</div></div>
