@@ -67,6 +67,59 @@ async function shouldSendNotification(userId, minutesBefore, followUpTime) {
   }
 }
 
+// Auto-complete meetings after their time slot ends
+async function autoCompleteMeetings() {
+  try {
+    // Get current UTC time and convert to IST (UTC+5:30)
+    const now = new Date();
+    const istTime = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+
+    const hours = String(istTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
+    const currentTime = `${hours}:${minutes}`;
+
+    const year = istTime.getUTCFullYear();
+    const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+    const date = String(istTime.getUTCDate()).padStart(2, '0');
+    const todayDate = `${year}-${month}-${date}`;
+
+    // Find meetings that should be marked as completed
+    // (meeting end time has passed: meeting_date < today OR (meeting_date = today AND meeting_time + duration < current_time))
+    const { rows: expiredMeetings } = await pool.query(`
+      SELECT m.id, m.title, m.meeting_date, m.meeting_time, m.duration, c.name as client_name
+      FROM meetings m
+      JOIN clients c ON m.client_id = c.id
+      WHERE m.status = 'scheduled'
+        AND (
+          m.meeting_date < $1
+          OR (
+            m.meeting_date = $1
+            AND (CAST(m.meeting_time AS time) + (m.duration || ' minutes')::interval) <= CAST($2 AS time)
+          )
+        )
+      LIMIT 20
+    `, [todayDate, currentTime]);
+
+    for (const meeting of expiredMeetings) {
+      try {
+        await pool.query(
+          'UPDATE meetings SET status = $1 WHERE id = $2',
+          ['completed', meeting.id]
+        );
+        console.log(`[AUTO-COMPLETE] Meeting "${meeting.title}" with ${meeting.client_name} marked as completed`);
+      } catch (err) {
+        console.error(`Failed to auto-complete meeting ${meeting.id}:`, err.message);
+      }
+    }
+
+    if (expiredMeetings.length > 0) {
+      console.log(`[AUTO-COMPLETE] ${expiredMeetings.length} meetings auto-completed`);
+    }
+  } catch (err) {
+    console.error('Error auto-completing meetings:', err.message);
+  }
+}
+
 async function checkAndSendNotifications() {
   try {
     for (const minutesBefore of NOTIFICATION_MINUTES) {
@@ -257,6 +310,7 @@ function startNotificationScheduler() {
   // Check every minute
   setInterval(() => {
     checkAndSendNotifications();
+    autoCompleteMeetings();
   }, 60000);
 
   // Clean up old notifications every hour
