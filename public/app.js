@@ -1764,7 +1764,7 @@ async function editMeeting(meetingId) {
   document.getElementById('m-client').value = meeting.client_id;
   document.getElementById('m-assigned-to').value = meeting.assigned_to || '';
 
-  document.getElementById('meeting-modal').classList.add('active');
+  document.getElementById('meeting-modal').classList.add('open');
 }
 
 async function deleteMeeting(meetingId) {
@@ -1806,7 +1806,7 @@ document.getElementById('btn-add-meeting')?.addEventListener('click', async () =
     userSelect.innerHTML = '<option value="">Unassigned</option>' +
       users.filter(u => u.role === 'executive').map(u => `<option value="${u.id}">${esc(u.username)}</option>`).join('');
 
-    document.getElementById('meeting-modal').classList.add('active');
+    document.getElementById('meeting-modal').classList.add('open');
   } catch (e) {
     console.error(e);
     toast('Failed to load meeting form', 'error');
@@ -1814,11 +1814,11 @@ document.getElementById('btn-add-meeting')?.addEventListener('click', async () =
 });
 
 document.getElementById('cancel-meeting')?.addEventListener('click', () => {
-  document.getElementById('meeting-modal').classList.remove('active');
+  document.getElementById('meeting-modal').classList.remove('open');
 });
 
 document.getElementById('close-meeting-modal')?.addEventListener('click', () => {
-  document.getElementById('meeting-modal').classList.remove('active');
+  document.getElementById('meeting-modal').classList.remove('open');
 });
 
 document.getElementById('meeting-form')?.addEventListener('submit', async (e) => {
@@ -1845,7 +1845,7 @@ document.getElementById('meeting-form')?.addEventListener('submit', async (e) =>
 
     if (!res.ok) throw new Error(res.statusText);
 
-    document.getElementById('meeting-modal').classList.remove('active');
+    document.getElementById('meeting-modal').classList.remove('open');
     toast('Meeting saved successfully!', 'success');
     loadMeetings();
   } catch (e) {
