@@ -84,17 +84,30 @@ function switchView(name) {
 
 // ── Dashboard ──────────────────────────────────────────
 async function loadDashboard() {
-  const [clients, today] = await Promise.all([
+  const [clients, today, meetings] = await Promise.all([
     apiFetch('/clients').then(r => r.json()),
     apiFetch('/followups/today').then(r => r.json()),
+    apiFetch('/meetings').then(r => r.json()),
   ]);
 
   const totalRemarks = clients.reduce((a,c) => a + (c.remark_count||0), 0);
+
+  // Get today's meetings
+  const now = new Date();
+  const istTime = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  const year = istTime.getUTCFullYear();
+  const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+  const date = String(istTime.getUTCDate()).padStart(2, '0');
+  const todayDate = `${year}-${month}-${date}`;
+
+  const todayMeetings = meetings.filter(m => m.meeting_date === todayDate);
+  const upcomingMeetings = meetings.filter(m => m.meeting_date > todayDate).slice(0, 5);
 
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="stat-label">Total Clients</div><div class="stat-value">${clients.length}</div></div>
     <div class="stat-card"><div class="stat-label">Today's Follow-ups</div><div class="stat-value red">${today.length}</div></div>
     <div class="stat-card"><div class="stat-label">Total Remarks</div><div class="stat-value">${totalRemarks}</div></div>
+    <div class="stat-card"><div class="stat-label">Today's Meetings</div><div class="stat-value blue">${todayMeetings.length}</div></div>
   `;
 
   // Animate stat cards
@@ -132,6 +145,50 @@ async function loadDashboard() {
     const followupCards = list.querySelectorAll('.followup-card');
     addStaggerAnimation(followupCards, 80);
   }, 150);
+
+  // Update meetings badge and display
+  const meetingsBadge = document.getElementById('today-meetings-badge');
+  meetingsBadge.textContent = todayMeetings.length;
+
+  // Display today's meetings
+  const todayMeetingsList = document.getElementById('today-meetings-list');
+  todayMeetingsList.innerHTML = todayMeetings.length === 0
+    ? '<div class="empty-state">No meetings scheduled for today.</div>'
+    : todayMeetings.map(m => `
+        <div class="meeting-card-compact today">
+          <div style="flex:1">
+            <div class="meeting-card-title">${esc(m.title)}</div>
+            <div class="meeting-card-client">Client: ${esc(m.client_name || 'Unassigned')}</div>
+            <div class="meeting-card-executive">Executive: ${esc(m.executive_name || 'Unassigned')}</div>
+          </div>
+          <div class="meeting-card-time">
+            <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">${m.meeting_time ? m.meeting_time.substring(0,5) : '--:--'}</div>
+            <div style="font-size:.75rem;color:var(--muted)">${m.duration || 30}m</div>
+          </div>
+        </div>`).join('');
+
+  // Display upcoming meetings
+  const upcomingMeetingsList = document.getElementById('upcoming-meetings-list');
+  upcomingMeetingsList.innerHTML = upcomingMeetings.length === 0
+    ? '<div class="empty-state">No upcoming meetings scheduled.</div>'
+    : upcomingMeetings.map(m => `
+        <div class="meeting-card-compact upcoming">
+          <div style="flex:1">
+            <div class="meeting-card-title">${esc(m.title)}</div>
+            <div class="meeting-card-client">Client: ${esc(m.client_name || 'Unassigned')}</div>
+            <div class="meeting-card-executive">Executive: ${esc(m.executive_name || 'Unassigned')}</div>
+          </div>
+          <div class="meeting-card-time">
+            <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">${formatDateIST(m.meeting_date)}</div>
+            <div style="font-size:.75rem;color:var(--muted)">${m.meeting_time ? m.meeting_time.substring(0,5) : '--:--'}</div>
+          </div>
+        </div>`).join('');
+
+  // Animate meeting cards
+  setTimeout(() => {
+    const meetingCards = document.querySelectorAll('.meeting-card-compact');
+    addStaggerAnimation(meetingCards, 80);
+  }, 200);
 
   // Load remarks dashboard
   loadRemarksDashboard();

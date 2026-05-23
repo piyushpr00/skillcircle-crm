@@ -415,6 +415,10 @@ h3 {
   color: var(--danger);
 }
 
+.stat-card .stat-value.blue {
+  color: var(--primary);
+}
+
 /* ═══════════════════════════════════════════════════════ */
 /*                    PANELS & CARDS                       */
 /* ═══════════════════════════════════════════════════════ */
@@ -462,6 +466,10 @@ h3 {
 .badge:hover {
   transform: scale(1.05);
   box-shadow: var(--shadow-md);
+}
+
+.badge.primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
 }
 
 .badge.danger {
@@ -1923,6 +1931,96 @@ body.dark-mode .meeting-card.today {
 
 body.dark-mode .meeting-card.upcoming {
   background: linear-gradient(135deg, rgba(15, 50, 109, 0.3), rgba(37, 99, 235, 0.1));
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+/* ─ Compact Meeting Cards for Dashboard ─ */
+.meetings-list-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.meeting-card-compact {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(100, 116, 139, 0.1);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
+  transition: var(--transition);
+  animation: slideInUp 0.5s ease;
+  position: relative;
+  overflow: hidden;
+  padding-left: 18px;
+}
+
+.meeting-card-compact::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  transition: var(--transition);
+}
+
+.meeting-card-compact.today::before {
+  background: linear-gradient(180deg, #d97706, #92400e);
+}
+
+.meeting-card-compact.upcoming::before {
+  background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+}
+
+.meeting-card-compact.overdue::before {
+  background: linear-gradient(180deg, #dc2626, #991b1b);
+}
+
+.meeting-card-compact:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.meeting-card-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.meeting-card-client {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.meeting-card-executive {
+  font-size: 0.85rem;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.meeting-card-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+body.dark-mode .meeting-card-compact {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+body.dark-mode .meeting-card-compact.today {
+  border-color: rgba(217, 119, 6, 0.3);
+}
+
+body.dark-mode .meeting-card-compact.upcoming {
   border-color: rgba(37, 99, 235, 0.3);
 }
 
