@@ -99,7 +99,13 @@ async function loadDashboard() {
   // Format as YYYY-MM-DD (matching database format)
   const todayDate = istTime.toLocaleDateString('en-IN', {year: 'numeric', month: '2-digit', day: '2-digit'}).split('/').reverse().join('-');
 
-  const todayMeetings = meetings.filter(m => m.meeting_date === todayDate);
+  console.log('[DASHBOARD] Today date:', todayDate);
+  console.log('[DASHBOARD] All meetings:', meetings.map(m => ({ title: m.title, date: m.meeting_date })));
+
+  const todayMeetings = meetings.filter(m => {
+    console.log(`[DASHBOARD] Comparing ${m.meeting_date} === ${todayDate}:`, m.meeting_date === todayDate);
+    return m.meeting_date === todayDate;
+  });
   const upcomingMeetings = meetings.filter(m => m.meeting_date > todayDate).slice(0, 5);
 
   document.getElementById('stats-row').innerHTML = `
