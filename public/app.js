@@ -37,6 +37,42 @@ function apiFetch(url, opts = {}) {
   });
 }
 
+// ── Dark Mode Toggle ──────────────────────────────────
+function initDarkMode() {
+  const darkModeBtn = document.getElementById('theme-toggle');
+  const savedTheme = localStorage.getItem('crm_theme') || 'light';
+
+  // Apply saved theme on load
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark-mode');
+    darkModeBtn.classList.add('dark-mode-active');
+    darkModeBtn.textContent = '☀️';
+    darkModeBtn.title = 'Switch to Light Mode';
+  } else {
+    darkModeBtn.textContent = '🌙';
+    darkModeBtn.title = 'Switch to Dark Mode';
+  }
+
+  // Toggle dark mode on button click
+  darkModeBtn.addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+    const isDarkMode = document.body.classList.contains('dark-mode');
+
+    // Update button appearance
+    if (isDarkMode) {
+      darkModeBtn.classList.add('dark-mode-active');
+      darkModeBtn.innerHTML = '<span class="theme-icon">☀️</span>';
+      darkModeBtn.title = 'Switch to Light Mode';
+      localStorage.setItem('crm_theme', 'dark');
+    } else {
+      darkModeBtn.classList.remove('dark-mode-active');
+      darkModeBtn.innerHTML = '<span class="theme-icon">🌙</span>';
+      darkModeBtn.title = 'Switch to Dark Mode';
+      localStorage.setItem('crm_theme', 'light');
+    }
+  });
+}
+
 // ── Bootstrap UI ───────────────────────────────────────
 document.getElementById('user-chip').innerHTML =
   `<strong>${esc(me.username)}</strong><span class="role-chip ${me.role}">${me.role}</span>`;
@@ -44,6 +80,8 @@ document.getElementById('user-chip').innerHTML =
 if (isAdmin) {
   document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
 }
+
+initDarkMode();
 
 document.getElementById('btn-logout').addEventListener('click', () => {
   localStorage.clear();
