@@ -46,10 +46,10 @@ function initDarkMode() {
   if (savedTheme === 'dark') {
     document.body.classList.add('dark-mode');
     darkModeBtn.classList.add('dark-mode-active');
-    darkModeBtn.textContent = '☀️';
+    darkModeBtn.textContent = 'Light Mode';
     darkModeBtn.title = 'Switch to Light Mode';
   } else {
-    darkModeBtn.textContent = '🌙';
+    darkModeBtn.textContent = 'Dark Mode';
     darkModeBtn.title = 'Switch to Dark Mode';
   }
 
@@ -61,12 +61,12 @@ function initDarkMode() {
     // Update button appearance
     if (isDarkMode) {
       darkModeBtn.classList.add('dark-mode-active');
-      darkModeBtn.innerHTML = '<span class="theme-icon">☀️</span>';
+      darkModeBtn.textContent = 'Light Mode';
       darkModeBtn.title = 'Switch to Light Mode';
       localStorage.setItem('crm_theme', 'dark');
     } else {
       darkModeBtn.classList.remove('dark-mode-active');
-      darkModeBtn.innerHTML = '<span class="theme-icon">🌙</span>';
+      darkModeBtn.textContent = 'Dark Mode';
       darkModeBtn.title = 'Switch to Dark Mode';
       localStorage.setItem('crm_theme', 'light');
     }
